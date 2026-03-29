@@ -6,10 +6,18 @@ abstract class Routes {
   Routes._();
 
   static const SPLASH = _Paths.SPLASH;
-  static const HOME = _Paths.HOME;
+  static const HOME_RECEIPT = _Paths.HOME_RECEIPT;
+  static const SCAN_RECEIPT = _Paths.SCAN_RECEIPT;
+  static const RECEIPT_DETAIL = _Paths.RECEIPT_DETAIL;
+  static const WARRANTY = _Paths.WARRANTY;
+  static const SETTINGS = _Paths.SETTINGS;
 }
 
 abstract class _Paths {
   static const SPLASH = '/splash';
-  static const HOME = '/home';
+  static const HOME_RECEIPT = '/home-receipt';
+  static const SCAN_RECEIPT = '/scan-receipt';
+  static const RECEIPT_DETAIL = '/receipt-detail';
+  static const WARRANTY = '/warranty';
+  static const SETTINGS = '/settings';
 }

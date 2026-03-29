@@ -27,7 +27,7 @@ class SplashController extends GetxController {
       if (useBio) {
         // Get.offAllNamed(Routes.BIOMETRICGATE);
       } else {
-        Get.offAllNamed(Routes.HOME);
+        Get.offAllNamed(Routes.HOME_RECEIPT);
       }
       isLoading.value = false;
     } catch (e) {

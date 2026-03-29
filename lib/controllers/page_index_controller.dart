@@ -1,3 +1,4 @@
+// lib/controllers/page_index_controller.dart
 import 'package:get/get.dart';
 import 'package:receipt_keeper/routes/app_pages.dart';
 
@@ -17,47 +18,21 @@ class PageIndexController extends GetxController {
 
     switch (index) {
       case 0:
-        Get.toNamed(Routes.HOME);
-        break;
       case 1:
-        Get.toNamed(Routes.HOME);
-        break;
       case 2:
-        // jangan stay di index 2 (biar bottom nav balik ke tab sebelumnya)
-        pageIndex.value = pageIndexBefore.value;
-        Get.toNamed(Routes.HOME);
-        break;
       case 3:
-        Get.toNamed(Routes.HOME);
-        break;
       case 4:
-        Get.toNamed(Routes.HOME);
-        break;
       default:
-        Get.toNamed(Routes.HOME);
+        Get.toNamed(Routes.HOME_RECEIPT);
         break;
     }
   }
 
-  changeIndexPage(int index) {
+  void changeIndexPage(int index) {
     pageIndex.value = index;
   }
 
-  /// Route dasar tempat kita "mendarat" kalau kembali dari flow penjualan
-  /// berdasarkan tab terakhir (pageIndexBefore).
-  String get baseRouteForPenjualanFlow {
-    switch (pageIndexBefore.value) {
-      case 0:
-        return Routes.HOME;
-      case 1:
-        return Routes.HOME;
-      case 3:
-        return Routes.HOME;
-      case 4:
-        return Routes.HOME;
-      default:
-        // fallback kalau entah kenapa nilainya di luar range
-        return Routes.HOME;
-    }
+  String get baseRoute {
+    return Routes.HOME_RECEIPT;
   }
 }

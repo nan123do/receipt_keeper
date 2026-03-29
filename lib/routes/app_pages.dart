@@ -1,8 +1,8 @@
 // ignore_for_file: prefer_const_constructors
 
 import 'package:get/get.dart';
-import 'package:receipt_keeper/pages/home/bindings/home_binding.dart';
-import 'package:receipt_keeper/pages/home/views/home_view.dart';
+import 'package:receipt_keeper/pages/home_receipt/bindings/home_receipt_binding.dart';
+import 'package:receipt_keeper/pages/home_receipt/views/home_receipt_view.dart';
 import 'package:receipt_keeper/pages/splash/bindings/splash_binding.dart';
 import 'package:receipt_keeper/pages/splash/views/splash_view.dart';
 
@@ -19,9 +19,9 @@ class AppPages {
       transition: Transition.fadeIn,
     ),
     GetPage(
-      name: _Paths.HOME,
-      page: () => HomeView(),
-      binding: HomeBinding(),
+      name: Routes.HOME_RECEIPT,
+      page: () => HomeReceiptView(),
+      binding: HomeReceiptBinding(),
       transition: Transition.fadeIn,
       transitionDuration: Duration(milliseconds: 500),
     ),
