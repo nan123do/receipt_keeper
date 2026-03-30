@@ -1,4 +1,6 @@
 // lib/models/warranty.dart
+import 'package:receipt_keeper/helpers/warranty_helper.dart';
+
 class Warranty {
   final int? id;
   final int receiptId;
@@ -21,6 +23,35 @@ class Warranty {
     this.createdAt,
     this.updatedAt,
   });
+
+  DateTime get normalizedPurchaseDate {
+    return WarrantyHelper.normalizeDate(purchaseDate);
+  }
+
+  DateTime get expiryDate {
+    return WarrantyHelper.calculateExpiryDate(
+      purchaseDate: purchaseDate,
+      warrantyMonths: warrantyMonths,
+    );
+  }
+
+  int get daysLeft {
+    return WarrantyHelper.calculateDaysLeft(
+      expiryDate: expiryDate,
+    );
+  }
+
+  bool get isExpired {
+    return daysLeft <= 0;
+  }
+
+  bool get isExpiringSoon {
+    return daysLeft > 0 && daysLeft <= 7;
+  }
+
+  bool get isActive {
+    return daysLeft > 7;
+  }
 
   Warranty copyWith({
     int? id,
