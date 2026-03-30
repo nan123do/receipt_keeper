@@ -37,6 +37,28 @@ class ReceiptItemDaoService {
         .toList();
   }
 
+  int countByReceiptId(int receiptId) {
+    final rows = AppDbService.to.db.select(
+      '''
+      SELECT COUNT(*) AS total
+      FROM receipt_item
+      WHERE receipt_id = ?
+      ''',
+      [receiptId],
+    );
+
+    if (rows.isEmpty) {
+      return 0;
+    }
+
+    final total = rows.first['total'];
+    if (total is int) {
+      return total;
+    }
+
+    return int.tryParse(total.toString()) ?? 0;
+  }
+
   int insert(ReceiptItem item) {
     final now = DateTime.now().toIso8601String();
 
