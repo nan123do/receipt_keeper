@@ -1,4 +1,6 @@
 // lib/pages/manual_receipt/views/manual_receipt_view.dart
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:receipt_keeper/components/Button/buttonfull.dart';
@@ -94,6 +96,10 @@ class ManualReceiptView extends GetView<ManualReceiptController> {
                               children: [
                                 _buildHeroCard(),
                                 16.gap,
+                                if (controller.hasDraftImage) ...[
+                                  _buildImageSection(),
+                                  16.gap,
+                                ],
                                 _buildMainSection(context),
                                 16.gap,
                                 _buildItemSection(),
@@ -178,6 +184,58 @@ class ManualReceiptView extends GetView<ManualReceiptController> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildImageSection() {
+    final imagePath = controller.normalizedDraftImagePath;
+    if (imagePath == null) {
+      return const SizedBox.shrink();
+    }
+
+    final imageFile = File(imagePath);
+
+    return _buildSectionCard(
+      title: 'Foto Struk',
+      description: 'Foto struk ini akan ikut tersimpan bersama draft struk.',
+      children: [
+        if (imageFile.existsSync())
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Image.file(
+              imageFile,
+              width: double.infinity,
+              height: 260,
+              fit: BoxFit.cover,
+            ),
+          )
+        else
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+            decoration: BoxDecoration(
+              color: CareraTheme.gray5,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: CareraTheme.gray20),
+            ),
+            child: const EmptyState(
+              useExpanded: false,
+              icon: Icons.broken_image_outlined,
+              title: 'Foto struk tidak ditemukan',
+              message: 'Silakan ulangi scan bila gambar sudah tidak tersedia.',
+            ),
+          ),
+        if (controller.draftImageSourceLabel != null) ...[
+          12.gap,
+          _buildBadge(
+            icon: Icons.photo_camera_back_outlined,
+            text: controller.draftImageSourceLabel!,
+            backgroundColor: CareraTheme.turquoise30,
+            iconColor: CareraTheme.mainColor,
+            textColor: CareraTheme.gray90,
+          ),
+        ],
+      ],
     );
   }
 

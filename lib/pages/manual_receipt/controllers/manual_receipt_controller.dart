@@ -9,6 +9,8 @@ import 'package:receipt_keeper/helpers/receipt_validation_helper.dart';
 import 'package:receipt_keeper/models/receipt.dart';
 import 'package:receipt_keeper/models/receipt_item.dart';
 import 'package:receipt_keeper/models/warranty.dart';
+import 'package:receipt_keeper/pages/home_receipt/controllers/home_receipt_controller.dart';
+import 'package:receipt_keeper/routes/app_pages.dart';
 import 'package:receipt_keeper/services/daos/receipt_dao_service.dart';
 import 'package:receipt_keeper/services/daos/receipt_item_dao_service.dart';
 import 'package:receipt_keeper/services/daos/warranty_dao_service.dart';
@@ -75,10 +77,13 @@ class ManualReceiptController extends GetxController {
 
   final RxBool isLoading = false.obs;
   final RxBool isEditMode = false.obs;
+  final RxBool isFromScanFlow = false.obs;
   final RxnInt receiptId = RxnInt();
   final Rx<DateTime> selectedPurchaseDate = DateTime.now().obs;
   final RxList<ManualReceiptItemDraft> draftItems =
       <ManualReceiptItemDraft>[].obs;
+  final RxnString draftImagePath = RxnString();
+  final RxnString draftImageSource = RxnString();
 
   Receipt? loadedReceipt;
 
@@ -129,6 +134,10 @@ class ManualReceiptController extends GetxController {
       return 'Silakan cek data utama, perbarui item, lalu simpan perubahan struk Anda.';
     }
 
+    if (hasDraftImage) {
+      return 'Foto struk sudah ditambahkan. Silakan cek data utama dan tambahkan item belanja.';
+    }
+
     return 'Isi tanggal dan nama toko, lalu tambahkan item dari struk. Total akan dihitung otomatis.';
   }
 
@@ -156,13 +165,38 @@ class ManualReceiptController extends GetxController {
       storeName: storeNameValue,
       purchaseDate: purchaseDate,
       totalAmount: totalAmountValue,
-      imagePath: loadedReceipt?.imagePath,
+      imagePath: normalizedDraftImagePath ?? loadedReceipt?.imagePath,
       note: noteValue,
       rawOcrText: loadedReceipt?.rawOcrText,
       isArchived: loadedReceipt?.isArchived ?? false,
       createdAt: loadedReceipt?.createdAt,
       updatedAt: loadedReceipt?.updatedAt,
     );
+  }
+
+  bool get hasDraftImage {
+    final value = draftImagePath.value?.trim();
+    return value != null && value.isNotEmpty;
+  }
+
+  String? get normalizedDraftImagePath {
+    final value = draftImagePath.value?.trim();
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+
+    return value;
+  }
+
+  String? get draftImageSourceLabel {
+    switch (draftImageSource.value) {
+      case 'camera':
+        return 'Dari kamera';
+      case 'gallery':
+        return 'Dari galeri';
+      default:
+        return null;
+    }
   }
 
   @override
@@ -185,6 +219,7 @@ class ManualReceiptController extends GetxController {
     }
 
     isEditMode.value = args['isEditMode'] == true;
+    isFromScanFlow.value = args['fromScanFlow'] == true;
 
     final rawReceiptId = args['receiptId'];
     if (rawReceiptId is int) {
@@ -193,8 +228,32 @@ class ManualReceiptController extends GetxController {
       receiptId.value = int.tryParse(rawReceiptId.toString());
     }
 
+    _applyScanDraftArguments(args);
+
     if (isEditMode.value) {
       loadReceiptForEdit();
+    }
+  }
+
+  void _applyScanDraftArguments(Map<String, dynamic> args) {
+    if (isEditMode.value) {
+      return;
+    }
+
+    final rawImagePath = args['scanImagePath'];
+    if (rawImagePath != null) {
+      final imagePath = rawImagePath.toString().trim();
+      if (imagePath.isNotEmpty) {
+        draftImagePath.value = imagePath;
+      }
+    }
+
+    final rawSource = args['scanSource'];
+    if (rawSource != null) {
+      final source = rawSource.toString().trim();
+      if (source.isNotEmpty) {
+        draftImageSource.value = source;
+      }
     }
   }
 
@@ -239,6 +298,8 @@ class ManualReceiptController extends GetxController {
   void _applyReceiptToForm(Receipt receipt) {
     loadedReceipt = receipt;
     receiptId.value = receipt.id;
+    draftImagePath.value = receipt.imagePath;
+    draftImageSource.value = null;
 
     setPurchaseDate(receipt.purchaseDate);
     totalAmountC.text = _formatEditableNumber(receipt.totalAmount);
@@ -413,6 +474,26 @@ class ManualReceiptController extends GetxController {
     await saveReceipt();
   }
 
+  Future<void> _closeAfterSave({
+    required String title,
+    required String message,
+  }) async {
+    if (isFromScanFlow.value) {
+      Get.until((route) => route.settings.name == Routes.HOME_RECEIPT);
+
+      if (Get.isRegistered<HomeReceiptController>()) {
+        await Get.find<HomeReceiptController>()
+            .loadReceipts(showLoading: false);
+      }
+
+      CustomToast.successToast(title, message);
+      return;
+    }
+
+    Get.back(result: true);
+    CustomToast.successToast(title, message);
+  }
+
   Future<void> saveReceipt() async {
     if (isLoading.value) {
       return;
@@ -449,10 +530,9 @@ class ManualReceiptController extends GetxController {
       final savedReceiptId = _receiptDaoService.insert(receipt);
       _saveDraftChildren(savedReceiptId);
 
-      Get.back(result: true);
-      CustomToast.successToast(
-        'Struk berhasil disimpan',
-        'Struk manual sudah masuk ke galeri struk.',
+      await _closeAfterSave(
+        title: 'Struk berhasil disimpan',
+        message: 'Struk manual sudah masuk ke galeri struk.',
       );
     } catch (e) {
       CustomToast.errorToast(
@@ -650,6 +730,8 @@ class ManualReceiptController extends GetxController {
     isEditMode.value = false;
 
     draftItems.clear();
+    draftImagePath.value = null;
+    draftImageSource.value = null;
     totalAmountC.clear();
     noteC.clear();
     storeNameC.clear();
