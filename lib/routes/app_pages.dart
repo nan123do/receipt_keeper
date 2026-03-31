@@ -3,6 +3,8 @@
 import 'package:get/get.dart';
 import 'package:receipt_keeper/pages/home_receipt/bindings/home_receipt_binding.dart';
 import 'package:receipt_keeper/pages/home_receipt/views/home_receipt_view.dart';
+import 'package:receipt_keeper/pages/manual_receipt/bindings/manual_receipt_binding.dart';
+import 'package:receipt_keeper/pages/manual_receipt/views/manual_receipt_view.dart';
 import 'package:receipt_keeper/pages/splash/bindings/splash_binding.dart';
 import 'package:receipt_keeper/pages/splash/views/splash_view.dart';
 
@@ -24,6 +26,12 @@ class AppPages {
       binding: HomeReceiptBinding(),
       transition: Transition.fadeIn,
       transitionDuration: Duration(milliseconds: 500),
+    ),
+    GetPage(
+      name: Routes.MANUAL_RECEIPT,
+      page: () => const ManualReceiptView(),
+      binding: ManualReceiptBinding(),
+      transition: Transition.rightToLeft,
     ),
   ];
 }

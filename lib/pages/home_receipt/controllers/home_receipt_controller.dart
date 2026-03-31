@@ -4,17 +4,22 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:receipt_keeper/components/Filter/date_filter.dart';
 import 'package:receipt_keeper/components/custom_toast.dart';
+import 'package:receipt_keeper/components/receipt_preview_bottom_sheet.dart';
 import 'package:receipt_keeper/helpers/delete_confirm_helper.dart';
 import 'package:receipt_keeper/helpers/report_export_helper.dart';
 import 'package:receipt_keeper/models/receipt.dart';
 import 'package:receipt_keeper/routes/app_pages.dart';
+import 'package:receipt_keeper/services/daos/app_setting_dao_service.dart';
 import 'package:receipt_keeper/services/daos/receipt_dao_service.dart';
 import 'package:receipt_keeper/services/daos/receipt_item_dao_service.dart';
 import 'package:receipt_keeper/services/daos/warranty_dao_service.dart';
 import 'package:receipt_keeper/utils/app_format_helper.dart';
+import 'package:receipt_keeper/utils/app_setting_keys.dart';
 
 class HomeReceiptController extends GetxController {
+  final AppSettingDaoService _appSettingDaoService = AppSettingDaoService();
   final ReceiptDaoService _receiptDaoService = ReceiptDaoService();
   final ReceiptItemDaoService _receiptItemDaoService = ReceiptItemDaoService();
   final WarrantyDaoService _warrantyDaoService = WarrantyDaoService();
@@ -24,9 +29,12 @@ class HomeReceiptController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool latestFirst = true.obs;
   final RxString searchQuery = ''.obs;
+  final Rx<DateFilterValue> selectedDateFilter = DateFilterValue.all().obs;
   final RxList<Receipt> receiptList = <Receipt>[].obs;
   final RxMap<int, int> itemCountMap = <int, int>{}.obs;
   final RxMap<int, int> warrantyCountMap = <int, int>{}.obs;
+  final RxnInt exampleReceiptId = RxnInt();
+  final RxBool isExampleInfoDismissed = false.obs;
 
   Worker? _searchWorker;
 
@@ -44,6 +52,19 @@ class HomeReceiptController extends GetxController {
     }
 
     return total;
+  }
+
+  bool get showExampleInfoCard {
+    if (isExampleInfoDismissed.value) {
+      return false;
+    }
+
+    final exampleId = exampleReceiptId.value;
+    if (exampleId == null) {
+      return false;
+    }
+
+    return receiptList.any((e) => e.id == exampleId);
   }
 
   List<HomeReceiptSection> get groupedReceiptSections {
@@ -80,7 +101,7 @@ class HomeReceiptController extends GetxController {
     if (todayReceipts.isNotEmpty) {
       sections.add(
         HomeReceiptSection(
-          title: 'Hari ini',
+          title: 'Hari Ini',
           items: todayReceipts,
         ),
       );
@@ -89,7 +110,7 @@ class HomeReceiptController extends GetxController {
     if (weekReceipts.isNotEmpty) {
       sections.add(
         HomeReceiptSection(
-          title: 'Minggu ini',
+          title: 'Minggu Ini',
           items: weekReceipts,
         ),
       );
@@ -98,7 +119,7 @@ class HomeReceiptController extends GetxController {
     if (olderReceipts.isNotEmpty) {
       sections.add(
         HomeReceiptSection(
-          title: 'Lama',
+          title: 'Lainnya',
           items: olderReceipts,
         ),
       );
@@ -110,6 +131,9 @@ class HomeReceiptController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+
+    _loadExampleReceiptId();
+    _loadExampleInfoState();
 
     _searchWorker = debounce<String>(
       searchQuery,
@@ -145,7 +169,7 @@ class HomeReceiptController extends GetxController {
         latestFirst: latestFirst.value,
       );
 
-      receiptList.assignAll(result);
+      receiptList.assignAll(_filterReceiptsByDate(result));
       _loadAdditionalCounts();
     } catch (e) {
       CustomToast.errorToast(
@@ -155,6 +179,40 @@ class HomeReceiptController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  void _loadExampleReceiptId() {
+    final rawId = _appSettingDaoService.getIntValue(
+      AppSettingKeys.exampleReceiptId,
+      defaultValue: 0,
+    );
+
+    exampleReceiptId.value = rawId > 0 ? rawId : null;
+  }
+
+  void _loadExampleInfoState() {
+    isExampleInfoDismissed.value = _appSettingDaoService.getBoolValue(
+      AppSettingKeys.exampleDataInfoDismissed,
+      defaultValue: false,
+    );
+  }
+
+  void dismissExampleInfoCard() {
+    isExampleInfoDismissed.value = true;
+    _appSettingDaoService.setValue(
+      AppSettingKeys.exampleDataInfoDismissed,
+      '1',
+      description: 'Petunjuk data contoh di home sudah ditutup',
+    );
+  }
+
+  bool isExampleReceipt(Receipt receipt) {
+    final receiptId = receipt.id;
+    if (receiptId == null) {
+      return false;
+    }
+
+    return receiptId == exampleReceiptId.value;
   }
 
   void onSearchChanged(String value) {
@@ -171,6 +229,11 @@ class HomeReceiptController extends GetxController {
     await loadReceipts(showLoading: false);
   }
 
+  Future<void> applyDateFilter(DateFilterValue value) async {
+    selectedDateFilter.value = value;
+    await loadReceipts(showLoading: false);
+  }
+
   Future<void> changeSortOrder(bool value) async {
     if (latestFirst.value == value) {
       return;
@@ -178,6 +241,51 @@ class HomeReceiptController extends GetxController {
 
     latestFirst.value = value;
     await loadReceipts(showLoading: false);
+  }
+
+  Future<void> openManualReceipt() async {
+    try {
+      final result = await Get.toNamed(Routes.MANUAL_RECEIPT);
+
+      if (result == true) {
+        await loadReceipts(showLoading: false);
+      }
+    } catch (e) {
+      CustomToast.errorToast(
+        'Halaman belum tersedia',
+        'Form struk manual belum bisa dibuka.',
+      );
+    }
+  }
+
+  Future<void> openEditReceipt(Receipt receipt) async {
+    final receiptId = receipt.id;
+    if (receiptId == null) {
+      CustomToast.errorToast(
+        'Data belum lengkap',
+        'Struk belum bisa diedit.',
+      );
+      return;
+    }
+
+    try {
+      final result = await Get.toNamed(
+        Routes.MANUAL_RECEIPT,
+        arguments: {
+          'isEditMode': true,
+          'receiptId': receiptId,
+        },
+      );
+
+      if (result == true) {
+        await loadReceipts(showLoading: false);
+      }
+    } catch (e) {
+      CustomToast.errorToast(
+        'Halaman belum tersedia',
+        'Form edit struk belum bisa dibuka.',
+      );
+    }
   }
 
   Future<void> openReceiptDetail(Receipt receipt) async {
@@ -190,19 +298,59 @@ class HomeReceiptController extends GetxController {
       return;
     }
 
-    try {
-      final result = await Get.toNamed(
-        Routes.RECEIPT_DETAIL,
-        arguments: receiptId,
-      );
+    final hasDetailRoute = AppPages.routes.any(
+      (route) => route.name == Routes.RECEIPT_DETAIL,
+    );
 
-      if (result == true) {
-        await loadReceipts(showLoading: false);
-      }
+    if (hasDetailRoute) {
+      try {
+        final result = await Get.toNamed(
+          Routes.RECEIPT_DETAIL,
+          arguments: receiptId,
+        );
+
+        if (result == true) {
+          await loadReceipts(showLoading: false);
+        }
+        return;
+      } catch (_) {}
+    }
+
+    await openReceiptPreview(receipt);
+  }
+
+  Future<void> openReceiptPreview(Receipt receipt) async {
+    final receiptId = receipt.id;
+    if (receiptId == null) {
+      return;
+    }
+
+    try {
+      final items = _receiptItemDaoService.getByReceiptId(receiptId);
+      final warranties = _warrantyDaoService.getByReceiptId(receiptId);
+
+      await Get.bottomSheet(
+        ReceiptPreviewBottomSheet(
+          receipt: receipt,
+          items: items,
+          warranties: warranties,
+          isExample: isExampleReceipt(receipt),
+          onEdit: () {
+            Get.back();
+            Future.microtask(() => openEditReceipt(receipt));
+          },
+          onQuickExport: () {
+            Get.back();
+            Future.microtask(() => quickExportReceipt(receipt));
+          },
+        ),
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+      );
     } catch (e) {
       CustomToast.errorToast(
-        'Halaman belum tersedia',
-        'Detail struk akan aktif setelah modul detail dibuat.',
+        'Preview belum bisa dibuka',
+        'Detail singkat struk belum bisa ditampilkan.',
       );
     }
   }
@@ -337,6 +485,20 @@ class HomeReceiptController extends GetxController {
 
     itemCountMap.assignAll(itemCounts);
     warrantyCountMap.assignAll(warrantyCounts);
+  }
+
+  List<Receipt> _filterReceiptsByDate(List<Receipt> source) {
+    final filter = selectedDateFilter.value;
+
+    if (filter.preset == DateFilterPreset.all) {
+      return source;
+    }
+
+    return source.where((receipt) {
+      final purchaseDate = receipt.purchaseDate;
+      return !purchaseDate.isBefore(filter.start) &&
+          !purchaseDate.isAfter(filter.end);
+    }).toList();
   }
 
   int getItemCount(int? receiptId) {

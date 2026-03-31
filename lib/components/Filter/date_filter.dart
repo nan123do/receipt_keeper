@@ -1,17 +1,16 @@
+// lib/components/Filter/date_filter.dart
 import 'package:intl/intl.dart';
 
-/// Jenis preset filter tanggal yang didukung receipt_keeper.
 enum DateFilterPreset {
+  all,
   today,
   last7Days,
   last30Days,
-  customDate, // rentang tanggal (hari-bulan-tahun)
-  customMonth, // rentang bulan (bulan-tahun)
-  customYear, // rentang tahun (tahun saja)
+  customDate,
+  customMonth,
+  customYear,
 }
 
-/// Nilai filter tanggal yang akan dipakai di berbagai fitur
-/// (penjualan, pembelian, laporan, dan lain-lain).
 class DateFilterValue {
   final DateFilterPreset preset;
   final DateTime start;
@@ -23,7 +22,15 @@ class DateFilterValue {
     required this.end,
   });
 
-  /// Filter "Hari ini".
+  factory DateFilterValue.all() {
+    final now = DateTime.now();
+    return DateFilterValue(
+      preset: DateFilterPreset.all,
+      start: DateTime(2000, 1, 1),
+      end: _endOfDay(now),
+    );
+  }
+
   factory DateFilterValue.today() {
     final now = DateTime.now();
     final start = _startOfDay(now);
@@ -35,7 +42,6 @@ class DateFilterValue {
     );
   }
 
-  /// Filter "7 hari terakhir" (termasuk hari ini).
   factory DateFilterValue.last7Days() {
     final now = DateTime.now();
     final end = _endOfDay(now);
@@ -48,7 +54,6 @@ class DateFilterValue {
     );
   }
 
-  /// Filter "30 hari terakhir" (termasuk hari ini).
   factory DateFilterValue.last30Days() {
     final now = DateTime.now();
     final end = _endOfDay(now);
@@ -61,7 +66,6 @@ class DateFilterValue {
     );
   }
 
-  /// Filter custom berdasarkan tanggal (hari-bulan-tahun).
   factory DateFilterValue.customDateRange(DateTime start, DateTime end) {
     var s = _startOfDay(start);
     var e = _endOfDay(end);
@@ -79,8 +83,6 @@ class DateFilterValue {
     );
   }
 
-  /// Filter custom berdasarkan bulan (bulan-tahun).
-  /// Start akan dipaksa ke awal bulan, end ke akhir bulan.
   factory DateFilterValue.customMonthRange(DateTime start, DateTime end) {
     var s = _startOfMonth(start);
     var e = _endOfMonth(end);
@@ -98,8 +100,6 @@ class DateFilterValue {
     );
   }
 
-  /// Filter custom berdasarkan tahun.
-  /// Start akan dipaksa ke 1 Januari, end ke 31 Desember.
   factory DateFilterValue.customYearRange(DateTime start, DateTime end) {
     var s = _startOfYear(start);
     var e = _endOfYear(end);
@@ -129,10 +129,12 @@ class DateFilterValue {
     );
   }
 
-  /// Label yang akan ditampilkan di tombol filter.
   String get label {
     final dfDay = DateFormat('dd MMM yyyy', 'id_ID');
+
     switch (preset) {
+      case DateFilterPreset.all:
+        return 'Semua tanggal';
       case DateFilterPreset.today:
         return 'Hari ini';
       case DateFilterPreset.last7Days:
@@ -150,8 +152,6 @@ class DateFilterValue {
     }
   }
 }
-
-// ─── Helper internal untuk normalisasi tanggal ──────────────────────────────
 
 DateTime _startOfDay(DateTime dt) =>
     DateTime(dt.year, dt.month, dt.day, 0, 0, 0, 0);

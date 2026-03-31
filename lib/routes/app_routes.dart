@@ -7,6 +7,7 @@ abstract class Routes {
 
   static const SPLASH = _Paths.SPLASH;
   static const HOME_RECEIPT = _Paths.HOME_RECEIPT;
+  static const MANUAL_RECEIPT = _Paths.MANUAL_RECEIPT;
   static const SCAN_RECEIPT = _Paths.SCAN_RECEIPT;
   static const RECEIPT_DETAIL = _Paths.RECEIPT_DETAIL;
   static const WARRANTY = _Paths.WARRANTY;
@@ -16,6 +17,7 @@ abstract class Routes {
 abstract class _Paths {
   static const SPLASH = '/splash';
   static const HOME_RECEIPT = '/home-receipt';
+  static const MANUAL_RECEIPT = '/manual-receipt';
   static const SCAN_RECEIPT = '/scan-receipt';
   static const RECEIPT_DETAIL = '/receipt-detail';
   static const WARRANTY = '/warranty';

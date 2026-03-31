@@ -9,6 +9,7 @@ import 'package:receipt_keeper/controllers/page_index_controller.dart';
 import 'package:receipt_keeper/routes/app_pages.dart';
 import 'package:receipt_keeper/services/daos/app_setting_dao_service.dart';
 import 'package:receipt_keeper/services/db/app_db_service.dart';
+import 'package:receipt_keeper/services/seeds/demo_receipt_seed_service.dart';
 import 'package:receipt_keeper/utils/theme.dart';
 
 Future<void> main() async {
@@ -23,7 +24,12 @@ Future<void> main() async {
     permanent: true,
   );
 
-  AppSettingDaoService().ensureDefaultSettings();
+  final appSettingDaoService = AppSettingDaoService();
+  appSettingDaoService.ensureDefaultSettings();
+
+  try {
+    DemoReceiptSeedService().ensureSeeded();
+  } catch (_) {}
 
   Get.put(PageIndexController(), permanent: true);
 

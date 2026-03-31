@@ -124,6 +124,8 @@ class _DateFilterBottomSheetBodyState extends State<DateFilterBottomSheetBody> {
 
   DateFilterValue buildResult() {
     switch (_selectedPreset) {
+      case DateFilterPreset.all:
+        return DateFilterValue.all();
       case DateFilterPreset.today:
         return DateFilterValue.today();
       case DateFilterPreset.last7Days:
@@ -143,8 +145,11 @@ class _DateFilterBottomSheetBodyState extends State<DateFilterBottomSheetBody> {
     setState(() {
       _selectedPreset = preset;
 
-      // Ketika memilih preset cepat, langsung set start & end.
-      if (preset == DateFilterPreset.today) {
+      if (preset == DateFilterPreset.all) {
+        final v = DateFilterValue.all();
+        _start = v.start;
+        _end = v.end;
+      } else if (preset == DateFilterPreset.today) {
         final v = DateFilterValue.today();
         _start = v.start;
         _end = v.end;
@@ -157,8 +162,6 @@ class _DateFilterBottomSheetBodyState extends State<DateFilterBottomSheetBody> {
         _start = v.start;
         _end = v.end;
       }
-      // Untuk customDate/customMonth/customYear, biarkan nilai existing
-      // supaya user bisa mengedit dari nilai sebelumnya.
     });
   }
 
@@ -174,6 +177,10 @@ class _DateFilterBottomSheetBodyState extends State<DateFilterBottomSheetBody> {
         12.gap,
 
         // Preset cepat
+        _buildPresetTile(
+          preset: DateFilterPreset.all,
+          title: 'Semua tanggal',
+        ),
         _buildPresetTile(
           preset: DateFilterPreset.today,
           title: 'Hari ini',

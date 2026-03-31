@@ -30,6 +30,7 @@ class ReportChartHelper {
     DateFilterValue filter,
   ) {
     switch (filter.preset) {
+      case DateFilterPreset.all:
       case DateFilterPreset.today:
       case DateFilterPreset.last30Days:
       case DateFilterPreset.customDate:
