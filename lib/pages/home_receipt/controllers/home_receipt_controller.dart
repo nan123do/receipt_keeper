@@ -6,7 +6,6 @@ import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:receipt_keeper/components/Filter/date_filter.dart';
 import 'package:receipt_keeper/components/custom_toast.dart';
-import 'package:receipt_keeper/components/receipt_preview_bottom_sheet.dart';
 import 'package:receipt_keeper/helpers/delete_confirm_helper.dart';
 import 'package:receipt_keeper/helpers/report_export_helper.dart';
 import 'package:receipt_keeper/models/receipt.dart';
@@ -298,60 +297,13 @@ class HomeReceiptController extends GetxController {
       return;
     }
 
-    final hasDetailRoute = AppPages.routes.any(
-      (route) => route.name == Routes.RECEIPT_DETAIL,
+    final result = await Get.toNamed(
+      Routes.RECEIPT_DETAIL,
+      arguments: receiptId,
     );
 
-    if (hasDetailRoute) {
-      try {
-        final result = await Get.toNamed(
-          Routes.RECEIPT_DETAIL,
-          arguments: receiptId,
-        );
-
-        if (result == true) {
-          await loadReceipts(showLoading: false);
-        }
-        return;
-      } catch (_) {}
-    }
-
-    await openReceiptPreview(receipt);
-  }
-
-  Future<void> openReceiptPreview(Receipt receipt) async {
-    final receiptId = receipt.id;
-    if (receiptId == null) {
-      return;
-    }
-
-    try {
-      final items = _receiptItemDaoService.getByReceiptId(receiptId);
-      final warranties = _warrantyDaoService.getByReceiptId(receiptId);
-
-      await Get.bottomSheet(
-        ReceiptPreviewBottomSheet(
-          receipt: receipt,
-          items: items,
-          warranties: warranties,
-          isExample: isExampleReceipt(receipt),
-          onEdit: () {
-            Get.back();
-            Future.microtask(() => openEditReceipt(receipt));
-          },
-          onQuickExport: () {
-            Get.back();
-            Future.microtask(() => quickExportReceipt(receipt));
-          },
-        ),
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-      );
-    } catch (e) {
-      CustomToast.errorToast(
-        'Preview belum bisa dibuka',
-        'Detail singkat struk belum bisa ditampilkan.',
-      );
+    if (result == true) {
+      await loadReceipts(showLoading: false);
     }
   }
 
