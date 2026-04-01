@@ -95,9 +95,18 @@ class ManualReceiptView extends GetView<ManualReceiptController> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _buildHeroCard(),
-                                16.gap,
+                                if (controller.isFromScanFlow.value) ...[
+                                  16.gap,
+                                  _buildScanFlowStatusSection(),
+                                ],
                                 if (controller.hasDraftImage) ...[
+                                  16.gap,
                                   _buildImageSection(),
+                                  16.gap,
+                                ],
+                                if (controller.hasDraftOcrText ||
+                                    controller.hasParsedOcrResult) ...[
+                                  _buildOcrSummarySection(),
                                   16.gap,
                                 ],
                                 _buildMainSection(context),
@@ -187,6 +196,83 @@ class ManualReceiptView extends GetView<ManualReceiptController> {
     );
   }
 
+  Widget _buildScanFlowStatusSection() {
+    final isFailed = controller.isFromFailedOcrFlow;
+    final bgColor = isFailed ? CareraTheme.orange20 : CareraTheme.turquoise20;
+    final borderColor =
+        isFailed ? CareraTheme.orange50 : CareraTheme.turquoise50;
+    final iconColor = isFailed ? CareraTheme.orange100 : CareraTheme.mainColor;
+    final icon =
+        isFailed ? Icons.edit_note_rounded : Icons.auto_awesome_rounded;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: CareraTheme.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Icon(
+                  icon,
+                  size: 20,
+                  color: iconColor,
+                ),
+              ),
+              12.wGap,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      controller.scanFlowStatusTitle,
+                      style: AxataTextStyle.textBase.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: CareraTheme.black,
+                      ),
+                    ),
+                    6.gap,
+                    Text(
+                      controller.scanFlowStatusDescription,
+                      style: AxataTextStyle.textSm.copyWith(
+                        color: CareraTheme.gray70,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (controller.canBackToScanFlow) ...[
+            14.gap,
+            ButtonFull(
+              middleText: 'Scan Ulang Foto Struk',
+              icon: Icons.camera_alt_outlined,
+              colorOpposite: true,
+              bgColor: CareraTheme.mainColor,
+              ontap: controller.backToScanFlow,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildImageSection() {
     final imagePath = controller.normalizedDraftImagePath;
     if (imagePath == null) {
@@ -236,6 +322,223 @@ class ManualReceiptView extends GetView<ManualReceiptController> {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildOcrSummarySection() {
+    final parsed = controller.parsedOcrResult.value;
+    final detectedItems = parsed?.items.length ?? 0;
+
+    return _buildSectionCard(
+      title: 'Hasil Deteksi OCR',
+      description:
+          'Cek hasil bacaan awal. Bila ada yang kurang tepat, Anda bisa langsung edit manual.',
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _buildBadge(
+              icon: Icons.storefront_outlined,
+              text: parsed?.hasStoreName == true
+                  ? 'Toko terbaca'
+                  : 'Toko belum pasti',
+              backgroundColor: parsed?.hasStoreName == true
+                  ? CareraTheme.turquoise30
+                  : CareraTheme.gray10,
+              iconColor: parsed?.hasStoreName == true
+                  ? CareraTheme.mainColor
+                  : CareraTheme.gray60,
+              textColor: CareraTheme.gray90,
+            ),
+            _buildBadge(
+              icon: Icons.calendar_today_outlined,
+              text: parsed?.hasPurchaseDate == true
+                  ? 'Tanggal terbaca'
+                  : 'Tanggal belum pasti',
+              backgroundColor: parsed?.hasPurchaseDate == true
+                  ? CareraTheme.turquoise30
+                  : CareraTheme.gray10,
+              iconColor: parsed?.hasPurchaseDate == true
+                  ? CareraTheme.mainColor
+                  : CareraTheme.gray60,
+              textColor: CareraTheme.gray90,
+            ),
+            _buildBadge(
+              icon: Icons.payments_outlined,
+              text: parsed?.hasTotalAmount == true
+                  ? 'Total terbaca'
+                  : 'Total belum pasti',
+              backgroundColor: parsed?.hasTotalAmount == true
+                  ? CareraTheme.turquoise30
+                  : CareraTheme.gray10,
+              iconColor: parsed?.hasTotalAmount == true
+                  ? CareraTheme.mainColor
+                  : CareraTheme.gray60,
+              textColor: CareraTheme.gray90,
+            ),
+            _buildBadge(
+              icon: Icons.shopping_bag_outlined,
+              text: detectedItems > 0
+                  ? '$detectedItems item terdeteksi'
+                  : 'Item belum terbaca',
+              backgroundColor:
+                  detectedItems > 0 ? CareraTheme.orange20 : CareraTheme.gray10,
+              iconColor: detectedItems > 0
+                  ? CareraTheme.orange100
+                  : CareraTheme.gray60,
+              textColor: CareraTheme.gray90,
+            ),
+          ],
+        ),
+        14.gap,
+        if (parsed?.hasAnyValue == true) ...[
+          _buildOcrSummaryTile(
+            icon: Icons.storefront_outlined,
+            label: 'Nama Toko',
+            value: parsed?.storeName?.trim().isNotEmpty == true
+                ? parsed!.storeName!
+                : 'Belum terbaca jelas',
+          ),
+          10.gap,
+          _buildOcrSummaryTile(
+            icon: Icons.calendar_today_outlined,
+            label: 'Tanggal Beli',
+            value: parsed?.purchaseDate != null
+                ? AppFormatHelper.formatDate(parsed!.purchaseDate!)
+                : 'Belum terbaca jelas',
+          ),
+          10.gap,
+          _buildOcrSummaryTile(
+            icon: Icons.payments_outlined,
+            label: 'Total Belanja',
+            value: parsed?.totalAmount != null && parsed!.totalAmount! > 0
+                ? AppFormatHelper.formatRupiah(parsed.totalAmount!)
+                : 'Belum terbaca jelas',
+          ),
+        ] else ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            decoration: BoxDecoration(
+              color: CareraTheme.gray5,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: CareraTheme.gray20),
+            ),
+            child: Text(
+              'OCR belum menemukan data utama yang cukup jelas. Silakan isi atau koreksi data secara manual.',
+              style: AxataTextStyle.textSm.copyWith(
+                color: CareraTheme.gray70,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+        if (controller.draftOcrLines.isNotEmpty) ...[
+          14.gap,
+          Text(
+            'Cuplikan Teks OCR',
+            style: AxataTextStyle.textSm.copyWith(
+              fontWeight: FontWeight.w700,
+              color: CareraTheme.black,
+            ),
+          ),
+          8.gap,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: CareraTheme.gray5,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: CareraTheme.gray20),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: controller.draftOcrLines.take(6).map((line) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '• $line',
+                    style: AxataTextStyle.textSm.copyWith(
+                      color: CareraTheme.gray80,
+                      height: 1.35,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          if (controller.draftOcrLines.length > 6) ...[
+            8.gap,
+            Text(
+              '+${controller.draftOcrLines.length - 6} baris lain tidak ditampilkan.',
+              style: AxataTextStyle.textXs.copyWith(
+                color: CareraTheme.gray70,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
+  Widget _buildOcrSummaryTile({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: CareraTheme.gray5,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: CareraTheme.gray20),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: CareraTheme.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: CareraTheme.gray20),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: CareraTheme.mainColor,
+            ),
+          ),
+          12.wGap,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: AxataTextStyle.textXs.copyWith(
+                    color: CareraTheme.gray60,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                4.gap,
+                Text(
+                  value,
+                  style: AxataTextStyle.textSm.copyWith(
+                    color: CareraTheme.black,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

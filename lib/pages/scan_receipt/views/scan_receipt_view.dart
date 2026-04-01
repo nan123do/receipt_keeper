@@ -41,15 +41,27 @@ class ScanReceiptView extends GetView<ScanReceiptController> {
                         ],
                         16.gap,
                         _buildPreviewSection(),
+                        16.gap,
+                        _buildOcrResultSection(),
                       ],
                     ),
                   ),
                 ),
                 16.gap,
+                if (controller.hasSelectedImage && controller.isOcrFailed) ...[
+                  ButtonFull(
+                    middleText: 'Coba Baca OCR Lagi',
+                    icon: Icons.refresh_rounded,
+                    colorOpposite: true,
+                    bgColor: CareraTheme.mainColor,
+                    ontap: controller.retryOcr,
+                  ),
+                  12.gap,
+                ],
                 if (controller.hasSelectedImage) ...[
                   ButtonFull(
                     middleText: 'Ulangi Scan',
-                    icon: Icons.refresh_rounded,
+                    icon: Icons.photo_camera_back_rounded,
                     colorOpposite: true,
                     bgColor: CareraTheme.mainColor,
                     ontap: controller.retryScan,
@@ -57,12 +69,22 @@ class ScanReceiptView extends GetView<ScanReceiptController> {
                   12.gap,
                 ],
                 ButtonFull(
-                  middleText: 'Lanjut ke Draft Struk',
-                  icon: Icons.arrow_forward_rounded,
+                  middleText: controller.continueButtonText,
+                  icon: controller.hasOcrText
+                      ? Icons.arrow_forward_rounded
+                      : Icons.edit_note_rounded,
                   readOnly: !controller.canContinue,
                   ontap: controller.canContinue
                       ? () => controller.continueToDraft()
                       : null,
+                ),
+                8.gap,
+                Text(
+                  controller.continueHelperText,
+                  style: AxataTextStyle.textXs.copyWith(
+                    color: CareraTheme.gray60,
+                    height: 1.35,
+                  ),
                 ),
               ],
             ),
@@ -318,6 +340,284 @@ class ScanReceiptView extends GetView<ScanReceiptController> {
           ),
           14.gap,
           _buildPreviewBody(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOcrResultSection() {
+    final hasImage = controller.hasSelectedImage;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: CareraTheme.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: CareraTheme.gray20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Hasil Deteksi OCR',
+            style: AxataTextStyle.textBase.copyWith(
+              fontWeight: FontWeight.w700,
+              color: CareraTheme.black,
+            ),
+          ),
+          4.gap,
+          Text(
+            controller.isProcessingOcr.value
+                ? 'Sistem sedang membaca teks dari struk Anda.'
+                : controller.hasOcrText
+                    ? 'Cek hasil bacaan awal sebelum lanjut ke draft.'
+                    : hasImage
+                        ? 'OCR belum menemukan teks yang cukup jelas. Anda tetap bisa lanjut dan isi manual.'
+                        : 'Hasil OCR akan tampil setelah Anda memilih gambar struk.',
+            style: AxataTextStyle.textSm.copyWith(
+              color: CareraTheme.gray70,
+              height: 1.4,
+            ),
+          ),
+          14.gap,
+          if (!hasImage)
+            _buildOcrEmptyCard(
+              icon: Icons.text_snippet_outlined,
+              title: 'Belum ada hasil OCR',
+              message:
+                  'Silakan ambil foto atau pilih gambar struk terlebih dahulu.',
+            )
+          else if (controller.isProcessingOcr.value)
+            _buildOcrLoadingCard()
+          else if (controller.hasOcrText)
+            _buildOcrSuccessCard()
+          else
+            _buildOcrEmptyCard(
+              icon: Icons.warning_amber_rounded,
+              title: 'Teks belum terbaca jelas',
+              message: controller.ocrErrorMessage.value ??
+                  'Anda tetap bisa lanjut ke draft dan isi data secara manual.',
+            ),
+          if (controller.isOcrFailed) ...[
+            12.gap,
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: CareraTheme.orange20,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: CareraTheme.orange50),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    size: 18,
+                    color: CareraTheme.orange100,
+                  ),
+                  10.wGap,
+                  Expanded(
+                    child: Text(
+                      'Hasil OCR belum cukup jelas. Anda bisa coba baca ulang OCR atau lanjut isi draft secara manual.',
+                      style: AxataTextStyle.textSm.copyWith(
+                        color: CareraTheme.gray80,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOcrLoadingCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: CareraTheme.gray5,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: CareraTheme.gray20),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.2,
+              color: CareraTheme.mainColor,
+            ),
+          ),
+          12.wGap,
+          Expanded(
+            child: Text(
+              'Sedang membaca teks struk...',
+              style: AxataTextStyle.textSm.copyWith(
+                color: CareraTheme.gray80,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOcrSuccessCard() {
+    final lines = controller.ocrResult.value.lines;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: CareraTheme.turquoise10,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: CareraTheme.turquoise40),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildInfoBadge(
+                icon: Icons.check_circle_outline_rounded,
+                text: '${lines.length} baris terbaca',
+                backgroundColor: CareraTheme.white,
+                iconColor: CareraTheme.mainColor,
+                textColor: CareraTheme.gray90,
+              ),
+              _buildInfoBadge(
+                icon: Icons.edit_note_rounded,
+                text: 'Tetap bisa diedit',
+                backgroundColor: CareraTheme.white,
+                iconColor: CareraTheme.orange100,
+                textColor: CareraTheme.gray90,
+              ),
+            ],
+          ),
+          12.gap,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: CareraTheme.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: CareraTheme.gray20),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: lines.take(6).map((line) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '• $line',
+                    style: AxataTextStyle.textSm.copyWith(
+                      color: CareraTheme.gray80,
+                      height: 1.35,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          if (lines.length > 6) ...[
+            10.gap,
+            Text(
+              '+${lines.length - 6} baris lain akan dicek lagi di halaman draft.',
+              style: AxataTextStyle.textXs.copyWith(
+                color: CareraTheme.gray70,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOcrEmptyCard({
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      decoration: BoxDecoration(
+        color: CareraTheme.gray5,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: CareraTheme.gray20),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            size: 28,
+            color: CareraTheme.gray60,
+          ),
+          10.gap,
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: AxataTextStyle.textBase.copyWith(
+              fontWeight: FontWeight.w700,
+              color: CareraTheme.black,
+            ),
+          ),
+          6.gap,
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: AxataTextStyle.textSm.copyWith(
+              color: CareraTheme.gray70,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoBadge({
+    required IconData icon,
+    required String text,
+    required Color backgroundColor,
+    required Color iconColor,
+    required Color textColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: CareraTheme.gray20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: iconColor,
+          ),
+          6.wGap,
+          Text(
+            text,
+            style: AxataTextStyle.textXs.copyWith(
+              color: textColor,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );

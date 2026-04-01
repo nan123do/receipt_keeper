@@ -6,6 +6,7 @@ import 'package:receipt_keeper/helpers/datehelper.dart';
 import 'package:receipt_keeper/helpers/delete_confirm_helper.dart';
 import 'package:receipt_keeper/helpers/number_helper.dart';
 import 'package:receipt_keeper/helpers/receipt_validation_helper.dart';
+import 'package:receipt_keeper/models/ocr_parsed_receipt_model.dart';
 import 'package:receipt_keeper/models/receipt.dart';
 import 'package:receipt_keeper/models/receipt_item.dart';
 import 'package:receipt_keeper/models/warranty.dart';
@@ -14,6 +15,7 @@ import 'package:receipt_keeper/routes/app_pages.dart';
 import 'package:receipt_keeper/services/daos/receipt_dao_service.dart';
 import 'package:receipt_keeper/services/daos/receipt_item_dao_service.dart';
 import 'package:receipt_keeper/services/daos/warranty_dao_service.dart';
+import 'package:receipt_keeper/services/ocr/receipt_ocr_parser_service.dart';
 import 'package:receipt_keeper/utils/app_format_helper.dart';
 
 class ManualReceiptItemDraft {
@@ -69,6 +71,8 @@ class ManualReceiptController extends GetxController {
   final ReceiptDaoService _receiptDaoService = ReceiptDaoService();
   final ReceiptItemDaoService _receiptItemDaoService = ReceiptItemDaoService();
   final WarrantyDaoService _warrantyDaoService = WarrantyDaoService();
+  final ReceiptOcrParserService _receiptOcrParserService =
+      const ReceiptOcrParserService();
 
   final TextEditingController purchaseDateC = TextEditingController();
   final TextEditingController totalAmountC = TextEditingController();
@@ -84,6 +88,10 @@ class ManualReceiptController extends GetxController {
       <ManualReceiptItemDraft>[].obs;
   final RxnString draftImagePath = RxnString();
   final RxnString draftImageSource = RxnString();
+  final RxnString draftRawOcrText = RxnString();
+  final RxList<String> draftOcrLines = <String>[].obs;
+  final Rxn<OcrParsedReceiptModel> parsedOcrResult =
+      Rxn<OcrParsedReceiptModel>();
 
   Receipt? loadedReceipt;
 
@@ -134,11 +142,7 @@ class ManualReceiptController extends GetxController {
       return 'Silakan cek data utama, perbarui item, lalu simpan perubahan struk Anda.';
     }
 
-    if (hasDraftImage) {
-      return 'Foto struk sudah ditambahkan. Silakan cek data utama dan tambahkan item belanja.';
-    }
-
-    return 'Isi tanggal dan nama toko, lalu tambahkan item dari struk. Total akan dihitung otomatis.';
+    return scanFlowStatusDescription;
   }
 
   String? get noteValue {
@@ -167,7 +171,7 @@ class ManualReceiptController extends GetxController {
       totalAmount: totalAmountValue,
       imagePath: normalizedDraftImagePath ?? loadedReceipt?.imagePath,
       note: noteValue,
-      rawOcrText: loadedReceipt?.rawOcrText,
+      rawOcrText: normalizedDraftRawOcrText ?? loadedReceipt?.rawOcrText,
       isArchived: loadedReceipt?.isArchived ?? false,
       createdAt: loadedReceipt?.createdAt,
       updatedAt: loadedReceipt?.updatedAt,
@@ -199,11 +203,121 @@ class ManualReceiptController extends GetxController {
     }
   }
 
+  bool get hasDraftOcrText {
+    final value = draftRawOcrText.value?.trim();
+    return value != null && value.isNotEmpty;
+  }
+
+  String? get normalizedDraftRawOcrText {
+    final value = draftRawOcrText.value?.trim();
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+
+    return value;
+  }
+
+  bool get hasParsedOcrResult => parsedOcrResult.value?.hasAnyValue == true;
+
+  bool get isFromSuccessfulOcrFlow =>
+      isFromScanFlow.value && hasParsedOcrResult;
+
+  bool get isFromFailedOcrFlow =>
+      isFromScanFlow.value && hasDraftImage && !hasParsedOcrResult;
+
+  String get scanFlowStatusTitle {
+    if (isFromSuccessfulOcrFlow) {
+      return 'Cek hasil OCR';
+    }
+
+    if (isFromFailedOcrFlow) {
+      return 'Isi manual dari foto struk';
+    }
+
+    if (hasDraftImage) {
+      return 'Draft dari hasil scan';
+    }
+
+    return 'Input manual';
+  }
+
+  String get scanFlowStatusDescription {
+    if (isFromSuccessfulOcrFlow) {
+      return 'Beberapa data sudah diisi otomatis. Mohon cek lagi sebelum disimpan.';
+    }
+
+    if (isFromFailedOcrFlow) {
+      return 'OCR belum membaca struk dengan cukup jelas. Anda tetap bisa isi data secara manual dari foto yang sudah dipilih.';
+    }
+
+    if (hasDraftImage) {
+      return 'Foto struk sudah masuk ke draft. Lengkapi data yang dibutuhkan sebelum simpan.';
+    }
+
+    return 'Isi data struk secara manual dan tambahkan item belanja.';
+  }
+
+  bool get canBackToScanFlow => isFromScanFlow.value;
+
+  bool get isOcrAutofillApplied => isFromScanFlow.value && hasParsedOcrResult;
+
+  bool get isManualFromScanFallback =>
+      isFromScanFlow.value && hasDraftImage && !hasParsedOcrResult;
+
+  String get saveSuccessTitle {
+    if (isOcrAutofillApplied) {
+      return 'Struk hasil scan disimpan';
+    }
+
+    if (isManualFromScanFallback) {
+      return 'Struk dari foto disimpan';
+    }
+
+    if (hasDraftImage) {
+      return 'Struk disimpan';
+    }
+
+    return 'Struk berhasil disimpan';
+  }
+
+  String get saveSuccessMessage {
+    if (isOcrAutofillApplied) {
+      return 'Hasil scan OCR sudah masuk ke galeri struk dan siap dicek lagi kapan saja.';
+    }
+
+    if (isManualFromScanFallback) {
+      return 'Foto struk dan data manual sudah masuk ke galeri struk.';
+    }
+
+    if (hasDraftImage) {
+      return 'Data struk dari foto sudah masuk ke galeri struk.';
+    }
+
+    return 'Struk manual sudah masuk ke galeri struk.';
+  }
+
+  String get updateSuccessTitle {
+    if (isFromScanFlow.value) {
+      return 'Draft scan diperbarui';
+    }
+
+    return 'Perubahan disimpan';
+  }
+
+  String get updateSuccessMessage {
+    if (isFromScanFlow.value) {
+      return 'Data hasil scan berhasil diperbarui dan disimpan.';
+    }
+
+    return 'Data struk berhasil diperbarui.';
+  }
+
   @override
   void onInit() {
     super.onInit();
     _setInitialValue();
     _handleArguments();
+    _parseAndAutofillFromOcr();
   }
 
   void _setInitialValue() {
@@ -255,6 +369,77 @@ class ManualReceiptController extends GetxController {
         draftImageSource.value = source;
       }
     }
+
+    final rawOcrText = args['rawOcrText'];
+    if (rawOcrText != null) {
+      final text = rawOcrText.toString().trim();
+      if (text.isNotEmpty) {
+        draftRawOcrText.value = text;
+      }
+    }
+
+    final rawOcrLines = args['ocrLines'];
+    if (rawOcrLines is List) {
+      draftOcrLines.value = rawOcrLines
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+  }
+
+  void _parseAndAutofillFromOcr() {
+    if (isEditMode.value) {
+      return;
+    }
+
+    final rawText = draftRawOcrText.value?.trim();
+    if (rawText == null || rawText.isEmpty) {
+      return;
+    }
+
+    final parsed = _receiptOcrParserService.parse(rawText);
+    parsedOcrResult.value = parsed;
+
+    if (!parsed.hasAnyValue) {
+      return;
+    }
+
+    if ((storeNameC.text).trim().isEmpty && parsed.hasStoreName) {
+      storeNameC.text = parsed.storeName!.trim();
+    }
+
+    if (parsed.hasPurchaseDate) {
+      final current = selectedPurchaseDate.value;
+      final isStillDefaultToday = current.year == DateTime.now().year &&
+          current.month == DateTime.now().month &&
+          current.day == DateTime.now().day;
+
+      if (isStillDefaultToday) {
+        setPurchaseDate(parsed.purchaseDate!);
+      }
+    }
+
+    if (draftItems.isEmpty && parsed.hasItems) {
+      draftItems.value = parsed.items
+          .map(
+            (item) => ManualReceiptItemDraft(
+              itemName: item.itemName,
+              qty: item.qty <= 0 ? 1 : item.qty,
+              unitPrice: item.unitPrice > 0 ? item.unitPrice : item.subtotal,
+            ),
+          )
+          .toList();
+    }
+
+    final shouldApplyParsedTotal =
+        (draftItems.isEmpty && parsed.hasTotalAmount) ||
+            (parsed.hasTotalAmount && parsed.items.isEmpty);
+
+    if (shouldApplyParsedTotal) {
+      totalAmountC.text = _formatEditableNumber(parsed.totalAmount!);
+    }
+
+    syncTotalAmountFromItems();
   }
 
   void loadReceiptForEdit() {
@@ -300,6 +485,9 @@ class ManualReceiptController extends GetxController {
     receiptId.value = receipt.id;
     draftImagePath.value = receipt.imagePath;
     draftImageSource.value = null;
+    draftRawOcrText.value = receipt.rawOcrText;
+    draftOcrLines.clear();
+    parsedOcrResult.value = null;
 
     setPurchaseDate(receipt.purchaseDate);
     totalAmountC.text = _formatEditableNumber(receipt.totalAmount);
@@ -531,8 +719,8 @@ class ManualReceiptController extends GetxController {
       _saveDraftChildren(savedReceiptId);
 
       await _closeAfterSave(
-        title: 'Struk berhasil disimpan',
-        message: 'Struk manual sudah masuk ke galeri struk.',
+        title: saveSuccessTitle,
+        message: saveSuccessMessage,
       );
     } catch (e) {
       CustomToast.errorToast(
@@ -593,10 +781,9 @@ class ManualReceiptController extends GetxController {
       _receiptItemDaoService.deleteByReceiptId(id);
       _saveDraftChildren(id);
 
-      Get.back(result: true);
-      CustomToast.successToast(
-        'Perubahan disimpan',
-        'Data struk berhasil diperbarui.',
+      await _closeAfterSave(
+        title: updateSuccessTitle,
+        message: updateSuccessMessage,
       );
     } catch (e) {
       CustomToast.errorToast(
@@ -724,6 +911,14 @@ class ManualReceiptController extends GetxController {
     }
   }
 
+  void backToScanFlow() {
+    if (!canBackToScanFlow) {
+      return;
+    }
+
+    Get.back();
+  }
+
   void resetForm() {
     loadedReceipt = null;
     receiptId.value = null;
@@ -732,6 +927,9 @@ class ManualReceiptController extends GetxController {
     draftItems.clear();
     draftImagePath.value = null;
     draftImageSource.value = null;
+    draftRawOcrText.value = null;
+    draftOcrLines.clear();
+    parsedOcrResult.value = null;
     totalAmountC.clear();
     noteC.clear();
     storeNameC.clear();
