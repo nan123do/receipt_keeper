@@ -322,6 +322,21 @@ class HomeReceiptController extends GetxController {
     }
   }
 
+  Future<void> openWarrantyPage() async {
+    try {
+      final result = await Get.toNamed(Routes.WARRANTY);
+
+      if (result == true) {
+        await loadReceipts(showLoading: false);
+      }
+    } catch (e) {
+      CustomToast.errorToast(
+        'Halaman belum tersedia',
+        'Daftar garansi belum bisa dibuka.',
+      );
+    }
+  }
+
   Future<void> archiveReceipt(Receipt receipt) async {
     final receiptId = receipt.id;
     if (receiptId == null) {

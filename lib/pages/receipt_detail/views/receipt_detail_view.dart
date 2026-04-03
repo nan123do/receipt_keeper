@@ -14,6 +14,7 @@ import 'package:receipt_keeper/components/label_value_row.dart';
 import 'package:receipt_keeper/components/loading.dart';
 import 'package:receipt_keeper/helpers/number_helper.dart';
 import 'package:receipt_keeper/models/receipt_item.dart';
+import 'package:receipt_keeper/models/warranty.dart';
 import 'package:receipt_keeper/pages/receipt_detail/controllers/receipt_detail_controller.dart';
 import 'package:receipt_keeper/utils/app_format_helper.dart';
 import 'package:receipt_keeper/utils/theme.dart';
@@ -61,6 +62,8 @@ class ReceiptDetailView extends GetView<ReceiptDetailController> {
                                       _buildReceiptInfoSection(),
                                       16.gap,
                                       _buildItemSection(),
+                                      16.gap,
+                                      _buildWarrantySection(),
                                       16.gap,
                                       _buildReceiptActionSection(),
                                     ],
@@ -429,6 +432,72 @@ class ReceiptDetailView extends GetView<ReceiptDetailController> {
     );
   }
 
+  Widget _buildWarrantySection() {
+    return _buildSectionCard(
+      title: 'Garansi',
+      trailing: Text(
+        controller.hasWarranties
+            ? '${controller.warrantyCount} garansi'
+            : 'Belum ada garansi',
+        style: AxataTextStyle.textSm.copyWith(
+          color: CareraTheme.gray70,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!controller.hasItems)
+            const EmptyState(
+              useExpanded: false,
+              icon: Icons.verified_outlined,
+              title: 'Belum ada item untuk garansi',
+              message:
+                  'Tambahkan item terlebih dahulu, lalu pilih item yang ingin diberi garansi.',
+            )
+          else if (!controller.hasWarranties)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: CareraTheme.turquoise20,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: CareraTheme.turquoise50),
+              ),
+              child: Text(
+                'Belum ada data garansi. Gunakan tombol Tambah Garansi pada item yang relevan di atas.',
+                style: AxataTextStyle.textSm.copyWith(
+                  color: CareraTheme.gray80,
+                  height: 1.4,
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              itemCount: controller.warrantyList.length,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              separatorBuilder: (_, __) => const Divider(height: 20),
+              itemBuilder: (context, index) {
+                final warranty = controller.warrantyList[index];
+                return _buildWarrantyTile(warranty);
+              },
+            ),
+          14.gap,
+          _buildActionButton(
+            icon: Icons.verified_user_outlined,
+            label: 'Buka Halaman Garansi',
+            color: CareraTheme.mainColor,
+            onTap: controller.canManageWarranties
+                ? controller.openWarrantyPage
+                : null,
+            isFullWidth: true,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildReceiptActionSection() {
     return _buildSectionCard(
       title: 'Aksi Struk',
@@ -476,6 +545,7 @@ class ReceiptDetailView extends GetView<ReceiptDetailController> {
 
   Widget _buildItemTile(ReceiptItem item) {
     final note = item.note?.trim();
+    final linkedWarranty = controller.findWarrantyByItemId(item.id);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -547,6 +617,228 @@ class ReceiptDetailView extends GetView<ReceiptDetailController> {
               ),
             ),
           ],
+        ),
+        12.gap,
+        _buildItemWarrantyAction(
+          item: item,
+          linkedWarranty: linkedWarranty,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildItemWarrantyAction({
+    required ReceiptItem item,
+    required Warranty? linkedWarranty,
+  }) {
+    final hasWarranty = linkedWarranty != null;
+    final statusType = hasWarranty
+        ? AppFormatHelper.getWarrantyStatusType(linkedWarranty.daysLeft)
+        : null;
+    final statusStyle =
+        hasWarranty ? _getWarrantyStatusStyle(statusType!) : null;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: controller.canManageWarranties
+            ? () => _openWarrantyBottomSheet(
+                  item: item,
+                  initialWarranty: linkedWarranty,
+                )
+            : null,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 12,
+          ),
+          decoration: BoxDecoration(
+            color: hasWarranty ? CareraTheme.turquoise20 : CareraTheme.gray5,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: hasWarranty ? CareraTheme.turquoise50 : CareraTheme.gray20,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                hasWarranty ? Icons.verified_outlined : Icons.add_task_outlined,
+                size: 18,
+                color: hasWarranty
+                    ? statusStyle!.iconColor
+                    : CareraTheme.mainColor,
+              ),
+              10.wGap,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      controller.getWarrantyActionLabel(item),
+                      style: AxataTextStyle.textSm.copyWith(
+                        color: CareraTheme.gray90,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    3.gap,
+                    Text(
+                      hasWarranty
+                          ? '${linkedWarranty.warrantyMonths} bulan • Habis ${AppFormatHelper.formatDate(linkedWarranty.expiryDate)}'
+                          : 'Tambahkan garansi untuk item ini agar mudah dipantau.',
+                      style: AxataTextStyle.textXs.copyWith(
+                        color: CareraTheme.gray70,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: CareraTheme.gray60,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWarrantyTile(Warranty warranty) {
+    final linkedItem = controller.getLinkedItem(warranty);
+    final statusType = AppFormatHelper.getWarrantyStatusType(warranty.daysLeft);
+    final statusStyle = _getWarrantyStatusStyle(statusType);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: CareraTheme.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: CareraTheme.gray20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      linkedItem?.itemName ?? warranty.productName,
+                      style: AxataTextStyle.textBase.copyWith(
+                        color: CareraTheme.black,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    4.gap,
+                    Text(
+                      'Durasi ${warranty.warrantyMonths} bulan',
+                      style: AxataTextStyle.textSm.copyWith(
+                        color: CareraTheme.gray70,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              12.wGap,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildIconAction(
+                    icon: Icons.edit_outlined,
+                    color: CareraTheme.mainColor,
+                    onTap: controller.canManageWarranties
+                        ? () => _openWarrantyBottomSheet(
+                              item: linkedItem,
+                              initialWarranty: warranty,
+                            )
+                        : null,
+                  ),
+                  8.wGap,
+                  _buildIconAction(
+                    icon: Icons.delete_outline,
+                    color: CareraTheme.red,
+                    onTap: controller.canManageWarranties
+                        ? () => controller.removeWarranty(warranty)
+                        : null,
+                  ),
+                ],
+              ),
+            ],
+          ),
+          12.gap,
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildBadge(
+                icon: statusStyle.icon,
+                text: AppFormatHelper.formatWarrantyStatus(warranty.daysLeft),
+                backgroundColor: statusStyle.backgroundColor,
+                iconColor: statusStyle.iconColor,
+                textColor: statusStyle.textColor,
+              ),
+              _buildBadge(
+                icon: Icons.timelapse_outlined,
+                text: AppFormatHelper.formatWarrantyDaysLeft(warranty.daysLeft),
+                backgroundColor: CareraTheme.gray5,
+                iconColor: CareraTheme.gray70,
+                textColor: CareraTheme.gray80,
+              ),
+            ],
+          ),
+          12.gap,
+          Row(
+            children: [
+              Expanded(
+                child: _buildMiniInfoColumn(
+                  label: 'Tanggal beli',
+                  value: AppFormatHelper.formatDate(warranty.purchaseDate),
+                ),
+              ),
+              12.wGap,
+              Expanded(
+                child: _buildMiniInfoColumn(
+                  label: 'Habis garansi',
+                  value: AppFormatHelper.formatDate(warranty.expiryDate),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniInfoColumn({
+    required String label,
+    required String value,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AxataTextStyle.textXs.copyWith(
+            color: CareraTheme.gray60,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        6.gap,
+        Text(
+          value,
+          style: AxataTextStyle.textSm.copyWith(
+            color: CareraTheme.gray90,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     );
@@ -930,6 +1222,131 @@ class ReceiptDetailView extends GetView<ReceiptDetailController> {
     return result;
   }
 
+  Future<void> _openWarrantyBottomSheet({
+    ReceiptItem? item,
+    Warranty? initialWarranty,
+  }) async {
+    final linkedItem = item ?? controller.getLinkedItem(initialWarranty!);
+    if (linkedItem == null) {
+      CustomToast.errorToast(
+        'Item tidak ditemukan',
+        'Garansi ini belum terhubung ke item struk.',
+      );
+      return;
+    }
+
+    final formKey = GlobalKey<FormState>();
+    final productNameC = TextEditingController(text: linkedItem.itemName);
+    final purchaseDateC = TextEditingController(
+      text: AppFormatHelper.formatDate(controller.receipt?.purchaseDate),
+    );
+    final warrantyMonthsC = TextEditingController(
+      text: _formatIntegerInput(initialWarranty?.warrantyMonths ?? 12),
+    );
+
+    final result = await CustomBottomSheet.showDynamic<int>(
+      title: initialWarranty == null ? 'Tambah Garansi' : 'Edit Garansi',
+      primaryText:
+          initialWarranty == null ? 'Simpan Garansi' : 'Simpan Perubahan',
+      body: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LabeledTextField(
+              label: 'Produk',
+              hintText: 'Produk',
+              controller: productNameC,
+              readOnly: true,
+            ),
+            14.gap,
+            LabeledTextField(
+              label: 'Tanggal Beli',
+              hintText: 'Tanggal beli',
+              controller: purchaseDateC,
+              readOnly: true,
+            ),
+            14.gap,
+            LabeledTextField(
+              label: 'Durasi Garansi (Bulan)',
+              hintText: '12',
+              controller: warrantyMonthsC,
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                final months =
+                    NumberHelper.toDoubleCurrency(value ?? '').round();
+                if (months <= 0) {
+                  return 'Durasi garansi harus lebih dari 0 bulan.';
+                }
+
+                return null;
+              },
+            ),
+            12.gap,
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: CareraTheme.turquoise20,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: CareraTheme.turquoise50),
+              ),
+              child: Text(
+                'Nama produk mengikuti item struk. Jika nama item diubah, nama garansi akan ikut diperbarui.',
+                style: AxataTextStyle.textSm.copyWith(
+                  color: CareraTheme.gray80,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      onSave: () async {
+        final isValid = formKey.currentState?.validate() ?? false;
+        if (!isValid) {
+          return null;
+        }
+
+        final warrantyMonths =
+            NumberHelper.toDoubleCurrency(warrantyMonthsC.text).round();
+
+        if (warrantyMonths <= 0) {
+          CustomToast.errorToast(
+            'Durasi belum valid',
+            'Durasi garansi harus lebih dari 0 bulan.',
+          );
+          return null;
+        }
+
+        return warrantyMonths;
+      },
+    );
+
+    Future.delayed(const Duration(milliseconds: 300), () {
+      productNameC.dispose();
+      purchaseDateC.dispose();
+      warrantyMonthsC.dispose();
+    });
+
+    if (result == null) {
+      return;
+    }
+
+    if (initialWarranty == null) {
+      await controller.addWarrantyFromItem(
+        sourceItem: linkedItem,
+        warrantyMonths: result,
+      );
+      return;
+    }
+
+    await controller.updateWarranty(
+      sourceWarranty: initialWarranty,
+      warrantyMonths: result,
+    );
+  }
+
   String _formatInputNumber(double value) {
     final isWholeNumber = value == value.truncateToDouble();
     return NumberHelper.toCurrencyString(
@@ -937,6 +1354,40 @@ class ReceiptDetailView extends GetView<ReceiptDetailController> {
       maxFraction: isWholeNumber ? 0 : 2,
       minFraction: 0,
     );
+  }
+
+  String _formatIntegerInput(int value) {
+    return NumberHelper.toCurrencyString(
+      value,
+      maxFraction: 0,
+      minFraction: 0,
+    );
+  }
+
+  _WarrantyStatusStyle _getWarrantyStatusStyle(WarrantyStatusType statusType) {
+    switch (statusType) {
+      case WarrantyStatusType.active:
+        return const _WarrantyStatusStyle(
+          backgroundColor: CareraTheme.turquoise30,
+          iconColor: CareraTheme.turquoise100,
+          textColor: CareraTheme.gray90,
+          icon: Icons.verified_outlined,
+        );
+      case WarrantyStatusType.expiringSoon:
+        return const _WarrantyStatusStyle(
+          backgroundColor: CareraTheme.orange20,
+          iconColor: CareraTheme.orange100,
+          textColor: CareraTheme.gray90,
+          icon: Icons.schedule_outlined,
+        );
+      case WarrantyStatusType.expired:
+        return const _WarrantyStatusStyle(
+          backgroundColor: Color(0xFFFFF1F4),
+          iconColor: CareraTheme.red,
+          textColor: CareraTheme.gray90,
+          icon: Icons.error_outline,
+        );
+    }
   }
 }
 
@@ -951,5 +1402,19 @@ class _ReceiptItemFormValue {
     required this.qty,
     required this.unitPrice,
     this.note,
+  });
+}
+
+class _WarrantyStatusStyle {
+  final Color backgroundColor;
+  final Color iconColor;
+  final Color textColor;
+  final IconData icon;
+
+  const _WarrantyStatusStyle({
+    required this.backgroundColor,
+    required this.iconColor,
+    required this.textColor,
+    required this.icon,
   });
 }

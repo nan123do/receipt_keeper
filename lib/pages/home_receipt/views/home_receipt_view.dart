@@ -226,6 +226,8 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
               ),
             ],
           ),
+          12.gap,
+          _buildWarrantyQuickAction(),
         ],
       ),
     );
@@ -282,6 +284,75 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildWarrantyQuickAction() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: controller.openWarrantyPage,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
+          decoration: BoxDecoration(
+            color: CareraTheme.white.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: CareraTheme.white.withValues(alpha: 0.16),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: CareraTheme.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.verified_outlined,
+                  color: CareraTheme.white,
+                  size: 20,
+                ),
+              ),
+              12.wGap,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Lihat Garansi',
+                      style: AxataTextStyle.textBase.copyWith(
+                        color: CareraTheme.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    4.gap,
+                    Text(
+                      'Cek semua barang yang masih bergaransi',
+                      style: AxataTextStyle.textSm.copyWith(
+                        color: CareraTheme.white.withValues(alpha: 0.92),
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: CareraTheme.white.withValues(alpha: 0.92),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

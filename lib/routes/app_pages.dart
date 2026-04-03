@@ -11,6 +11,8 @@ import 'package:receipt_keeper/pages/scan_receipt/bindings/scan_receipt_binding.
 import 'package:receipt_keeper/pages/scan_receipt/views/scan_receipt_view.dart';
 import 'package:receipt_keeper/pages/splash/bindings/splash_binding.dart';
 import 'package:receipt_keeper/pages/splash/views/splash_view.dart';
+import 'package:receipt_keeper/pages/warranty/bindings/warranty_binding.dart';
+import 'package:receipt_keeper/pages/warranty/views/warranty_view.dart';
 
 part 'app_routes.dart';
 
@@ -47,6 +49,12 @@ class AppPages {
       name: _Paths.RECEIPT_DETAIL,
       page: () => const ReceiptDetailView(),
       binding: ReceiptDetailBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.WARRANTY,
+      page: () => const WarrantyView(),
+      binding: WarrantyBinding(),
       transition: Transition.rightToLeft,
     ),
   ];

@@ -42,6 +42,7 @@ class ReceiptDetailController extends GetxController {
       isReceiptActionLoading.value;
 
   bool get canManageItems => hasReceipt && !isBusy;
+  bool get canManageWarranties => hasReceipt && !isBusy;
   bool get canUseReceiptActions => hasReceipt && !isBusy;
 
   String get pageTitle {
@@ -347,6 +348,222 @@ class ReceiptDetailController extends GetxController {
     }
   }
 
+  Warranty? findWarrantyByItemId(int? itemId) {
+    if (itemId == null) {
+      return null;
+    }
+
+    for (final warranty in warrantyList) {
+      if (warranty.receiptItemId == itemId) {
+        return warranty;
+      }
+    }
+
+    return null;
+  }
+
+  ReceiptItem? findItemById(int? itemId) {
+    if (itemId == null) {
+      return null;
+    }
+
+    for (final item in itemList) {
+      if (item.id == itemId) {
+        return item;
+      }
+    }
+
+    return null;
+  }
+
+  ReceiptItem? getLinkedItem(Warranty warranty) {
+    return findItemById(warranty.receiptItemId);
+  }
+
+  bool hasWarrantyForItem(ReceiptItem item) {
+    return findWarrantyByItemId(item.id) != null;
+  }
+
+  String getWarrantyActionLabel(ReceiptItem item) {
+    return hasWarrantyForItem(item) ? 'Edit Garansi' : 'Tambah Garansi';
+  }
+
+  Future<void> addWarrantyFromItem({
+    required ReceiptItem sourceItem,
+    required int warrantyMonths,
+  }) async {
+    final currentReceiptId = receiptId.value;
+    final currentReceipt = receipt;
+
+    if (currentReceiptId == null ||
+        currentReceiptId <= 0 ||
+        currentReceipt == null) {
+      CustomToast.errorToast(
+        'Data tidak valid',
+        'Struk belum ditemukan.',
+      );
+      return;
+    }
+
+    if (sourceItem.id == null) {
+      CustomToast.errorToast(
+        'Data item tidak valid',
+        'Item belum bisa dipakai untuk garansi.',
+      );
+      return;
+    }
+
+    if (warrantyMonths <= 0) {
+      CustomToast.errorToast(
+        'Durasi tidak valid',
+        'Durasi garansi harus lebih dari 0 bulan.',
+      );
+      return;
+    }
+
+    final existingWarranty = findWarrantyByItemId(sourceItem.id);
+    if (existingWarranty != null) {
+      CustomToast.errorToast(
+        'Garansi sudah ada',
+        'Item ini sudah punya data garansi. Silakan edit data yang ada.',
+      );
+      return;
+    }
+
+    try {
+      isItemActionLoading.value = true;
+
+      final newWarranty = Warranty(
+        receiptId: currentReceiptId,
+        receiptItemId: sourceItem.id,
+        productName: sourceItem.itemName,
+        purchaseDate: currentReceipt.purchaseDate,
+        warrantyMonths: warrantyMonths,
+      );
+
+      _warrantyDaoService.insert(newWarranty);
+      await _reloadChildrenOnly();
+
+      didChangeData.value = true;
+
+      CustomToast.successToast(
+        'Garansi berhasil ditambahkan',
+        'Data garansi sudah tersimpan pada struk ini.',
+      );
+    } catch (e) {
+      CustomToast.errorToast(
+        'Gagal menambahkan garansi',
+        'Data garansi belum bisa disimpan.',
+      );
+    } finally {
+      isItemActionLoading.value = false;
+    }
+  }
+
+  Future<void> updateWarranty({
+    required Warranty sourceWarranty,
+    required int warrantyMonths,
+  }) async {
+    if (sourceWarranty.id == null) {
+      CustomToast.errorToast(
+        'Data garansi tidak valid',
+        'ID garansi tidak ditemukan.',
+      );
+      return;
+    }
+
+    if (warrantyMonths <= 0) {
+      CustomToast.errorToast(
+        'Durasi tidak valid',
+        'Durasi garansi harus lebih dari 0 bulan.',
+      );
+      return;
+    }
+
+    try {
+      isItemActionLoading.value = true;
+
+      final linkedItem = getLinkedItem(sourceWarranty);
+      final updatedWarranty = sourceWarranty.copyWith(
+        productName: linkedItem?.itemName ?? sourceWarranty.productName,
+        purchaseDate: receipt?.purchaseDate ?? sourceWarranty.purchaseDate,
+        warrantyMonths: warrantyMonths,
+      );
+
+      _warrantyDaoService.update(updatedWarranty);
+      await _reloadChildrenOnly();
+
+      didChangeData.value = true;
+
+      CustomToast.successToast(
+        'Garansi berhasil diperbarui',
+        'Perubahan garansi sudah disimpan.',
+      );
+    } catch (e) {
+      CustomToast.errorToast(
+        'Gagal memperbarui garansi',
+        'Perubahan garansi belum bisa disimpan.',
+      );
+    } finally {
+      isItemActionLoading.value = false;
+    }
+  }
+
+  Future<void> removeWarranty(Warranty warranty) async {
+    if (warranty.id == null) {
+      CustomToast.errorToast(
+        'Data garansi tidak valid',
+        'ID garansi tidak ditemukan.',
+      );
+      return;
+    }
+
+    final isConfirmed = await DeleteConfirmHelper.show(
+      title: 'Hapus Garansi',
+      message: 'Apakah Anda yakin ingin menghapus data garansi ini?',
+      description:
+          'Pengingat garansi untuk item ini akan ikut hilang dari struk.',
+    );
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    try {
+      isItemActionLoading.value = true;
+
+      _warrantyDaoService.delete(warranty.id!);
+      await _reloadChildrenOnly();
+
+      didChangeData.value = true;
+
+      CustomToast.successToast(
+        'Garansi berhasil dihapus',
+        'Data garansi sudah dihapus dari struk.',
+      );
+    } catch (e) {
+      CustomToast.errorToast(
+        'Gagal menghapus garansi',
+        'Data garansi belum bisa dihapus.',
+      );
+    } finally {
+      isItemActionLoading.value = false;
+    }
+  }
+
+  Future<void> openWarrantyPage() async {
+    if (isBusy) {
+      return;
+    }
+
+    final result = await Get.toNamed(Routes.WARRANTY);
+
+    if (result == true) {
+      didChangeData.value = true;
+      await loadDetail(showLoading: false);
+    }
+  }
+
   Future<void> openEditReceipt() async {
     if (isBusy) {
       return;
@@ -374,6 +591,7 @@ class ReceiptDetailController extends GetxController {
 
       if (result == true) {
         didChangeData.value = true;
+        await _syncWarrantyPurchaseDateFromReceipt();
         await loadDetail(showLoading: false);
       }
     } catch (e) {
@@ -466,7 +684,7 @@ class ReceiptDetailController extends GetxController {
       isReceiptActionLoading.value = true;
 
       _warrantyDaoService.deleteByReceiptId(id);
-      _receiptItem_daoDeleteByReceiptId(id);
+      _receiptItemDaoDeleteByReceiptId(id);
       _receiptDaoService.delete(id);
 
       didChangeData.value = true;
@@ -542,8 +760,34 @@ class ReceiptDetailController extends GetxController {
     }
   }
 
+  Future<void> _syncWarrantyPurchaseDateFromReceipt() async {
+    final id = receiptId.value;
+    if (id == null || id <= 0) {
+      return;
+    }
+
+    final latestReceipt = _receiptDaoService.getById(id);
+    if (latestReceipt == null) {
+      return;
+    }
+
+    final currentWarranties = _warrantyDaoService.getByReceiptId(id);
+
+    for (final warranty in currentWarranties) {
+      if (warranty.id == null) {
+        continue;
+      }
+
+      _warrantyDaoService.update(
+        warranty.copyWith(
+          purchaseDate: latestReceipt.purchaseDate,
+        ),
+      );
+    }
+  }
+
   // ignore: non_constant_identifier_names
-  void _receiptItem_daoDeleteByReceiptId(int receiptId) {
+  void _receiptItemDaoDeleteByReceiptId(int receiptId) {
     _receiptItemDaoService.deleteByReceiptId(receiptId);
   }
 
@@ -570,9 +814,11 @@ class ReceiptDetailController extends GetxController {
     buffer.writeln('');
     buffer.writeln('Toko: $storeNameLabel');
     buffer.writeln(
-        'Tanggal: ${AppFormatHelper.formatDateTime(receipt.purchaseDate)}');
-    buffer
-        .writeln('Total: ${AppFormatHelper.formatRupiah(receipt.totalAmount)}');
+      'Tanggal: ${AppFormatHelper.formatDateTime(receipt.purchaseDate)}',
+    );
+    buffer.writeln(
+      'Total: ${AppFormatHelper.formatRupiah(receipt.totalAmount)}',
+    );
     buffer.writeln('Jumlah Item: $itemCount');
     buffer.writeln('Jumlah Garansi: $warrantyCount');
 
