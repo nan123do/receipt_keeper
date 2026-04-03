@@ -12,6 +12,7 @@ import 'package:receipt_keeper/components/empty_state.dart';
 import 'package:receipt_keeper/components/gap_extension.dart';
 import 'package:receipt_keeper/components/label_value_row.dart';
 import 'package:receipt_keeper/components/loading.dart';
+import 'package:receipt_keeper/components/mini_switch.dart';
 import 'package:receipt_keeper/helpers/number_helper.dart';
 import 'package:receipt_keeper/models/receipt_item.dart';
 import 'package:receipt_keeper/models/warranty.dart';
@@ -813,6 +814,61 @@ class ReceiptDetailView extends GetView<ReceiptDetailController> {
               ),
             ],
           ),
+          12.gap,
+          _buildWarrantyReminderRow(warranty),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWarrantyReminderRow(Warranty warranty) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: CareraTheme.gray5,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: CareraTheme.gray20),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pengingat Garansi',
+                  style: AxataTextStyle.textSm.copyWith(
+                    color: CareraTheme.black,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                4.gap,
+                Text(
+                  controller.getWarrantyReminderDescription(warranty),
+                  style: AxataTextStyle.textXs.copyWith(
+                    color: CareraTheme.gray70,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          12.wGap,
+          controller.isWarrantyReminderLoading(warranty)
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : MiniSwitch(
+                  value: warranty.isReminderEnabled,
+                  onChanged: controller.canManageWarranties
+                      ? (value) =>
+                          controller.toggleWarrantyReminder(warranty, value)
+                      : (_) {},
+                ),
         ],
       ),
     );

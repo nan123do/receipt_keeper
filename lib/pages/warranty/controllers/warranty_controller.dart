@@ -3,12 +3,28 @@ import 'package:get/get.dart';
 import 'package:receipt_keeper/components/custom_toast.dart';
 import 'package:receipt_keeper/models/warranty.dart';
 import 'package:receipt_keeper/routes/app_pages.dart';
+import 'package:receipt_keeper/services/daos/app_setting_dao_service.dart';
 import 'package:receipt_keeper/services/daos/warranty_dao_service.dart';
+import 'package:receipt_keeper/services/notification/notification_service.dart';
+import 'package:receipt_keeper/utils/app_setting_keys.dart';
 
 class WarrantyController extends GetxController {
   final WarrantyDaoService _warrantyDaoService = WarrantyDaoService();
+  final AppSettingDaoService _appSettingDaoService = AppSettingDaoService();
+
+  NotificationService? get _notificationService {
+    if (!Get.isRegistered<NotificationService>()) {
+      return null;
+    }
+
+    return Get.find<NotificationService>();
+  }
 
   final RxBool isLoading = false.obs;
+  final RxBool isUpdatingGlobalNotification = false.obs;
+  final RxBool isNotificationPermissionGranted = false.obs;
+  final RxBool isGlobalNotificationEnabled = true.obs;
+  final RxList<int> reminderLoadingIds = <int>[].obs;
   final RxList<Warranty> warrantyList = <Warranty>[].obs;
   final Rx<WarrantyFilterType> selectedFilter = WarrantyFilterType.all.obs;
 
@@ -16,13 +32,12 @@ class WarrantyController extends GetxController {
   bool get hasFilteredData => filteredWarrantyList.isNotEmpty;
 
   int get totalCount => warrantyList.length;
-
   int get activeCount => warrantyList.where((item) => item.isActive).length;
-
   int get expiringSoonCount =>
       warrantyList.where((item) => item.isExpiringSoon).length;
-
   int get expiredCount => warrantyList.where((item) => item.isExpired).length;
+  int get enabledReminderCount =>
+      warrantyList.where((item) => item.isReminderEnabled).length;
 
   List<WarrantyFilterType> get filterOptions => WarrantyFilterType.values;
 
@@ -106,10 +121,6 @@ class WarrantyController extends GetxController {
     return result;
   }
 
-  String get currentFilterLabel {
-    return getFilterLabel(selectedFilter.value);
-  }
-
   String get resultLabel {
     final total = filteredWarrantyList.length;
 
@@ -118,6 +129,22 @@ class WarrantyController extends GetxController {
     }
 
     return '$total garansi ditemukan';
+  }
+
+  String get notificationDescription {
+    if (!isGlobalNotificationEnabled.value) {
+      return 'Semua pengingat garansi sedang dimatikan.';
+    }
+
+    if (!isNotificationPermissionGranted.value) {
+      return 'Izin notifikasi perangkat belum diberikan.';
+    }
+
+    if (enabledReminderCount <= 0) {
+      return 'Aktif, tetapi belum ada item yang diberi pengingat.';
+    }
+
+    return '$enabledReminderCount item garansi sedang dipantau.';
   }
 
   String get emptyTitle {
@@ -153,6 +180,8 @@ class WarrantyController extends GetxController {
   }
 
   Future<void> getInit() async {
+    loadNotificationSetting();
+    await syncNotificationPermissionStatus();
     await loadWarranties();
   }
 
@@ -164,6 +193,8 @@ class WarrantyController extends GetxController {
         isLoading.value = true;
       }
 
+      loadNotificationSetting();
+
       final result = _warrantyDaoService.getAll();
       warrantyList.assignAll(result);
     } catch (e) {
@@ -174,6 +205,196 @@ class WarrantyController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  void loadNotificationSetting() {
+    isGlobalNotificationEnabled.value = _appSettingDaoService.getBoolValue(
+      AppSettingKeys.notificationEnabled,
+      defaultValue: true,
+    );
+  }
+
+  Future<void> syncNotificationPermissionStatus() async {
+    final notificationService = _notificationService;
+    if (notificationService == null) {
+      isNotificationPermissionGranted.value = false;
+      return;
+    }
+
+    final granted = await notificationService.syncPermissionStatus();
+    isNotificationPermissionGranted.value = granted;
+  }
+
+  bool isReminderLoading(Warranty warranty) {
+    final id = warranty.id;
+    if (id == null) {
+      return false;
+    }
+
+    return reminderLoadingIds.contains(id);
+  }
+
+  String getReminderDescription(Warranty warranty) {
+    if (!isGlobalNotificationEnabled.value) {
+      return 'Aktifkan notifikasi global dulu.';
+    }
+
+    if (!isNotificationPermissionGranted.value) {
+      return 'Izin notifikasi perlu diaktifkan.';
+    }
+
+    if (warranty.isReminderEnabled) {
+      return 'Pengingat aktif untuk item ini.';
+    }
+
+    return 'Belum ada pengingat untuk item ini.';
+  }
+
+  Future<void> toggleGlobalNotification(bool value) async {
+    if (isUpdatingGlobalNotification.value) {
+      return;
+    }
+
+    try {
+      isUpdatingGlobalNotification.value = true;
+
+      if (value) {
+        final granted = await _ensureNotificationPermission();
+        if (!granted) {
+          return;
+        }
+      }
+
+      _appSettingDaoService.setBoolValue(
+        AppSettingKeys.notificationEnabled,
+        value,
+        description: 'Notifikasi aplikasi aktif',
+      );
+
+      isGlobalNotificationEnabled.value = value;
+
+      if (value) {
+        await _notificationService?.runDailyWarrantyCheck(force: true);
+      } else {
+        await _notificationService?.cancelAll();
+      }
+
+      CustomToast.successToast(
+        value ? 'Notifikasi diaktifkan' : 'Notifikasi dimatikan',
+        value
+            ? 'Sekarang Anda bisa menyalakan pengingat per item garansi.'
+            : 'Semua pengingat garansi sementara tidak akan dikirim.',
+      );
+    } catch (e) {
+      CustomToast.errorToast(
+        'Gagal mengubah notifikasi',
+        'Pengaturan notifikasi belum bisa diperbarui.',
+      );
+    } finally {
+      isUpdatingGlobalNotification.value = false;
+    }
+  }
+
+  Future<void> toggleWarrantyReminder(
+    Warranty warranty,
+    bool value,
+  ) async {
+    final id = warranty.id;
+    if (id == null) {
+      CustomToast.errorToast(
+        'Data garansi tidak valid',
+        'ID garansi belum ditemukan.',
+      );
+      return;
+    }
+
+    if (reminderLoadingIds.contains(id)) {
+      return;
+    }
+
+    if (value && !isGlobalNotificationEnabled.value) {
+      CustomToast.errorToast(
+        'Aktifkan notifikasi global dulu',
+        'Nyalakan notifikasi utama agar pengingat item bisa dipakai.',
+      );
+      return;
+    }
+
+    if (value) {
+      final granted = await _ensureNotificationPermission();
+      if (!granted) {
+        return;
+      }
+    }
+
+    try {
+      reminderLoadingIds.add(id);
+      reminderLoadingIds.refresh();
+
+      _warrantyDaoService.updateReminderEnabled(id, value);
+
+      final updatedWarranty = warranty.copyWith(
+        isReminderEnabled: value,
+        updatedAt: DateTime.now(),
+      );
+
+      _replaceWarrantyInList(updatedWarranty);
+      await _syncReminderNotification(updatedWarranty);
+
+      CustomToast.successToast(
+        value ? 'Pengingat diaktifkan' : 'Pengingat dimatikan',
+        value
+            ? 'Garansi ini akan ikut dipantau oleh sistem.'
+            : 'Pengingat untuk garansi ini sudah dimatikan.',
+      );
+    } catch (e) {
+      CustomToast.errorToast(
+        'Gagal mengubah pengingat',
+        'Status pengingat garansi belum bisa diperbarui.',
+      );
+    } finally {
+      reminderLoadingIds.remove(id);
+      reminderLoadingIds.refresh();
+    }
+  }
+
+  Future<bool> _ensureNotificationPermission() async {
+    final notificationService = _notificationService;
+    if (notificationService == null) {
+      CustomToast.errorToast(
+        'Service notifikasi belum siap',
+        'Coba buka ulang aplikasi lalu aktifkan lagi.',
+      );
+      return false;
+    }
+
+    final currentStatus = await notificationService.syncPermissionStatus();
+    isNotificationPermissionGranted.value = currentStatus;
+
+    if (currentStatus) {
+      return true;
+    }
+
+    final granted = await notificationService.requestNotificationPermission();
+    isNotificationPermissionGranted.value = granted;
+
+    if (!granted) {
+      CustomToast.errorToast(
+        'Izin notifikasi belum diberikan',
+        'Aktifkan izin notifikasi perangkat agar pengingat bisa bekerja.',
+      );
+    }
+
+    return granted;
+  }
+
+  Future<void> _syncReminderNotification(Warranty warranty) async {
+    final notificationService = _notificationService;
+    if (notificationService == null) {
+      return;
+    }
+
+    await notificationService.syncWarrantyReminderForWarranty(warranty);
   }
 
   void applyFilter(WarrantyFilterType value) {
@@ -193,6 +414,7 @@ class WarrantyController extends GetxController {
     );
 
     if (result == true) {
+      await syncNotificationPermissionStatus();
       await loadWarranties(showLoading: false);
     }
   }
@@ -273,6 +495,18 @@ class WarrantyController extends GetxController {
     });
 
     return items;
+  }
+
+  void _replaceWarrantyInList(Warranty updatedWarranty) {
+    final index =
+        warrantyList.indexWhere((item) => item.id == updatedWarranty.id);
+    if (index < 0) {
+      return;
+    }
+
+    final items = List<Warranty>.from(warrantyList);
+    items[index] = updatedWarranty;
+    warrantyList.assignAll(items);
   }
 
   int _statusPriority(Warranty warranty) {

@@ -1,4 +1,5 @@
 // lib/services/daos/warranty_dao_service.dart
+
 import 'package:receipt_keeper/models/warranty.dart';
 import 'package:receipt_keeper/services/db/app_db_service.dart';
 
@@ -140,6 +141,26 @@ class WarrantyDaoService {
         warranty.isReminderEnabled ? 1 : 0,
         DateTime.now().toIso8601String(),
         warranty.id,
+      ],
+    );
+  }
+
+  void updateReminderEnabled(
+    int id,
+    bool isReminderEnabled,
+  ) {
+    AppDbService.to.db.execute(
+      '''
+      UPDATE warranty
+      SET
+        is_reminder_enabled = ?,
+        updated_at = ?
+      WHERE id = ?
+      ''',
+      [
+        isReminderEnabled ? 1 : 0,
+        DateTime.now().toIso8601String(),
+        id,
       ],
     );
   }

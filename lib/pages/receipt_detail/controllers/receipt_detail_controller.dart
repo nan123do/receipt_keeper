@@ -10,25 +10,39 @@ import 'package:receipt_keeper/models/receipt.dart';
 import 'package:receipt_keeper/models/receipt_item.dart';
 import 'package:receipt_keeper/models/warranty.dart';
 import 'package:receipt_keeper/routes/app_pages.dart';
+import 'package:receipt_keeper/services/daos/app_setting_dao_service.dart';
 import 'package:receipt_keeper/services/daos/receipt_dao_service.dart';
 import 'package:receipt_keeper/services/daos/receipt_item_dao_service.dart';
 import 'package:receipt_keeper/services/daos/warranty_dao_service.dart';
+import 'package:receipt_keeper/services/notification/notification_service.dart';
 import 'package:receipt_keeper/utils/app_format_helper.dart';
+import 'package:receipt_keeper/utils/app_setting_keys.dart';
 
 class ReceiptDetailController extends GetxController {
   final ReceiptDaoService _receiptDaoService = ReceiptDaoService();
   final ReceiptItemDaoService _receiptItemDaoService = ReceiptItemDaoService();
   final WarrantyDaoService _warrantyDaoService = WarrantyDaoService();
+  final AppSettingDaoService _appSettingDaoService = AppSettingDaoService();
 
   final RxBool isLoading = false.obs;
   final RxBool isItemActionLoading = false.obs;
   final RxBool isReceiptActionLoading = false.obs;
   final RxBool didChangeData = false.obs;
+  final RxBool isNotificationPermissionGranted = false.obs;
 
   final RxnInt receiptId = RxnInt();
   final Rxn<Receipt> receiptData = Rxn<Receipt>();
   final RxList<ReceiptItem> itemList = <ReceiptItem>[].obs;
   final RxList<Warranty> warrantyList = <Warranty>[].obs;
+  final RxList<int> reminderLoadingIds = <int>[].obs;
+
+  NotificationService? get _notificationService {
+    if (!Get.isRegistered<NotificationService>()) {
+      return null;
+    }
+
+    return Get.find<NotificationService>();
+  }
 
   Receipt? get receipt => receiptData.value;
 
@@ -120,6 +134,7 @@ class ReceiptDetailController extends GetxController {
   }
 
   Future<void> getInit() async {
+    await syncNotificationPermissionStatus();
     await loadDetail();
   }
 
@@ -323,6 +338,7 @@ class ReceiptDetailController extends GetxController {
 
       for (final warranty in linkedWarranties) {
         if (warranty.id != null) {
+          await _notificationService?.removeWarrantyReminderState(warranty);
           _warrantyDaoService.delete(warranty.id!);
         }
       }
@@ -384,6 +400,173 @@ class ReceiptDetailController extends GetxController {
     return findWarrantyByItemId(item.id) != null;
   }
 
+  bool get isGlobalNotificationEnabled {
+    return _appSettingDaoService.getBoolValue(
+      AppSettingKeys.notificationEnabled,
+      defaultValue: true,
+    );
+  }
+
+  bool isWarrantyReminderLoading(Warranty warranty) {
+    final id = warranty.id;
+    if (id == null) {
+      return false;
+    }
+
+    return reminderLoadingIds.contains(id);
+  }
+
+  String getWarrantyReminderDescription(Warranty warranty) {
+    if (!isGlobalNotificationEnabled) {
+      return 'Aktifkan notifikasi global dulu.';
+    }
+
+    if (!isNotificationPermissionGranted.value) {
+      return 'Izin notifikasi perangkat perlu diaktifkan.';
+    }
+
+    if (warranty.isReminderEnabled) {
+      return 'Pengingat aktif untuk item ini.';
+    }
+
+    return 'Belum ada pengingat untuk item ini.';
+  }
+
+  Future<void> syncNotificationPermissionStatus() async {
+    final notificationService = _notificationService;
+    if (notificationService == null) {
+      isNotificationPermissionGranted.value = false;
+      return;
+    }
+
+    final granted = await notificationService.syncPermissionStatus();
+    isNotificationPermissionGranted.value = granted;
+  }
+
+  Future<void> _syncReminderNotification(
+    Warranty warranty, {
+    bool resetState = false,
+  }) async {
+    final notificationService = _notificationService;
+    if (notificationService == null) {
+      return;
+    }
+
+    if (resetState) {
+      await notificationService.resetWarrantyReminderForWarranty(warranty);
+      return;
+    }
+
+    await notificationService.syncWarrantyReminderForWarranty(warranty);
+  }
+
+  Future<bool> _ensureNotificationPermission() async {
+    final notificationService = _notificationService;
+    if (notificationService == null) {
+      CustomToast.errorToast(
+        'Service notifikasi belum siap',
+        'Coba buka ulang aplikasi lalu aktifkan lagi.',
+      );
+      return false;
+    }
+
+    final currentStatus = await notificationService.syncPermissionStatus();
+    isNotificationPermissionGranted.value = currentStatus;
+
+    if (currentStatus) {
+      return true;
+    }
+
+    final granted = await notificationService.requestNotificationPermission();
+    isNotificationPermissionGranted.value = granted;
+
+    if (!granted) {
+      CustomToast.errorToast(
+        'Izin notifikasi belum diberikan',
+        'Aktifkan izin notifikasi perangkat agar pengingat bisa bekerja.',
+      );
+    }
+
+    return granted;
+  }
+
+  Future<void> toggleWarrantyReminder(
+    Warranty warranty,
+    bool value,
+  ) async {
+    final id = warranty.id;
+    if (id == null) {
+      CustomToast.errorToast(
+        'Data garansi tidak valid',
+        'ID garansi belum ditemukan.',
+      );
+      return;
+    }
+
+    if (reminderLoadingIds.contains(id)) {
+      return;
+    }
+
+    if (value && !isGlobalNotificationEnabled) {
+      CustomToast.errorToast(
+        'Aktifkan notifikasi global dulu',
+        'Nyalakan notifikasi utama agar pengingat item bisa dipakai.',
+      );
+      return;
+    }
+
+    if (value) {
+      final granted = await _ensureNotificationPermission();
+      if (!granted) {
+        return;
+      }
+    }
+
+    try {
+      reminderLoadingIds.add(id);
+      reminderLoadingIds.refresh();
+
+      _warrantyDaoService.updateReminderEnabled(id, value);
+
+      final updatedWarranty = warranty.copyWith(
+        isReminderEnabled: value,
+        updatedAt: DateTime.now(),
+      );
+
+      _replaceWarrantyInList(updatedWarranty);
+      await _syncReminderNotification(updatedWarranty);
+
+      didChangeData.value = true;
+
+      CustomToast.successToast(
+        value ? 'Pengingat diaktifkan' : 'Pengingat dimatikan',
+        value
+            ? 'Garansi ini akan ikut dipantau oleh sistem.'
+            : 'Pengingat untuk garansi ini sudah dimatikan.',
+      );
+    } catch (e) {
+      CustomToast.errorToast(
+        'Gagal mengubah pengingat',
+        'Status pengingat garansi belum bisa diperbarui.',
+      );
+    } finally {
+      reminderLoadingIds.remove(id);
+      reminderLoadingIds.refresh();
+    }
+  }
+
+  void _replaceWarrantyInList(Warranty updatedWarranty) {
+    final index =
+        warrantyList.indexWhere((item) => item.id == updatedWarranty.id);
+    if (index < 0) {
+      return;
+    }
+
+    final items = List<Warranty>.from(warrantyList);
+    items[index] = updatedWarranty;
+    warrantyList.assignAll(items);
+  }
+
   String getWarrantyActionLabel(ReceiptItem item) {
     return hasWarrantyForItem(item) ? 'Edit Garansi' : 'Tambah Garansi';
   }
@@ -439,6 +622,7 @@ class ReceiptDetailController extends GetxController {
         productName: sourceItem.itemName,
         purchaseDate: currentReceipt.purchaseDate,
         warrantyMonths: warrantyMonths,
+        isReminderEnabled: false,
       );
 
       _warrantyDaoService.insert(newWarranty);
@@ -491,6 +675,10 @@ class ReceiptDetailController extends GetxController {
       );
 
       _warrantyDaoService.update(updatedWarranty);
+      await _syncReminderNotification(
+        updatedWarranty,
+        resetState: true,
+      );
       await _reloadChildrenOnly();
 
       didChangeData.value = true;
@@ -532,6 +720,7 @@ class ReceiptDetailController extends GetxController {
     try {
       isItemActionLoading.value = true;
 
+      await _notificationService?.removeWarrantyReminderState(warranty);
       _warrantyDaoService.delete(warranty.id!);
       await _reloadChildrenOnly();
 

@@ -14,6 +14,7 @@ import 'package:receipt_keeper/services/daos/app_setting_dao_service.dart';
 import 'package:receipt_keeper/services/daos/receipt_dao_service.dart';
 import 'package:receipt_keeper/services/daos/receipt_item_dao_service.dart';
 import 'package:receipt_keeper/services/daos/warranty_dao_service.dart';
+import 'package:receipt_keeper/services/notification/notification_service.dart';
 import 'package:receipt_keeper/utils/app_format_helper.dart';
 import 'package:receipt_keeper/utils/app_setting_keys.dart';
 
@@ -151,7 +152,18 @@ class HomeReceiptController extends GetxController {
   }
 
   Future<void> getInit() async {
+    await _runWarrantyReminderCheck();
     await loadReceipts();
+  }
+
+  Future<void> _runWarrantyReminderCheck() async {
+    if (!Get.isRegistered<NotificationService>()) {
+      return;
+    }
+
+    try {
+      await NotificationService.to.runDailyWarrantyCheck();
+    } catch (_) {}
   }
 
   Future<void> loadReceipts({

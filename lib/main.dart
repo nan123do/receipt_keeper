@@ -9,6 +9,7 @@ import 'package:receipt_keeper/controllers/page_index_controller.dart';
 import 'package:receipt_keeper/routes/app_pages.dart';
 import 'package:receipt_keeper/services/daos/app_setting_dao_service.dart';
 import 'package:receipt_keeper/services/db/app_db_service.dart';
+import 'package:receipt_keeper/services/notification/notification_service.dart';
 import 'package:receipt_keeper/services/seeds/demo_receipt_seed_service.dart';
 import 'package:receipt_keeper/utils/theme.dart';
 
@@ -26,6 +27,11 @@ Future<void> main() async {
 
   final appSettingDaoService = AppSettingDaoService();
   appSettingDaoService.ensureDefaultSettings();
+
+  await Get.putAsync<NotificationService>(
+    () => NotificationService().init(),
+    permanent: true,
+  );
 
   try {
     DemoReceiptSeedService().ensureSeeded();

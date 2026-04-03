@@ -1,4 +1,5 @@
 // lib/services/daos/app_setting_dao_service.dart
+
 import 'package:receipt_keeper/services/db/app_db_service.dart';
 import 'package:receipt_keeper/utils/app_setting_keys.dart';
 
@@ -86,6 +87,18 @@ class AppSettingDaoService {
     }
 
     return result;
+  }
+
+  void setBoolValue(
+    String key,
+    bool value, {
+    String? description,
+  }) {
+    setValue(
+      key,
+      value ? '1' : '0',
+      description: description,
+    );
   }
 
   void setValue(

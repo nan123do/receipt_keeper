@@ -6,6 +6,8 @@ import 'package:receipt_keeper/components/appbar.dart';
 import 'package:receipt_keeper/components/empty_state.dart';
 import 'package:receipt_keeper/components/gap_extension.dart';
 import 'package:receipt_keeper/components/loading.dart';
+import 'package:receipt_keeper/components/mini_switch.dart';
+import 'package:receipt_keeper/models/warranty.dart';
 import 'package:receipt_keeper/pages/warranty/controllers/warranty_controller.dart';
 import 'package:receipt_keeper/utils/theme.dart';
 
@@ -134,6 +136,139 @@ class WarrantyView extends GetView<WarrantyController> {
               ),
             ],
           ),
+          14.gap,
+          _buildNotificationCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: CareraTheme.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: CareraTheme.gray20),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Notifikasi Garansi',
+                  style: AxataTextStyle.textBase.copyWith(
+                    color: CareraTheme.black,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                4.gap,
+                Text(
+                  controller.notificationDescription,
+                  style: AxataTextStyle.textSm.copyWith(
+                    color: CareraTheme.gray70,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          12.wGap,
+          controller.isUpdatingGlobalNotification.value
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : MiniSwitch(
+                  value: controller.isGlobalNotificationEnabled.value,
+                  onChanged: controller.toggleGlobalNotification,
+                ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmbeddedReminderRow(Warranty warranty) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: CareraTheme.gray5,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: CareraTheme.gray20),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pengingat Garansi',
+                  style: AxataTextStyle.textSm.copyWith(
+                    color: CareraTheme.black,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                4.gap,
+                Text(
+                  controller.getReminderDescription(warranty),
+                  style: AxataTextStyle.textXs.copyWith(
+                    color: CareraTheme.gray70,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          12.wGap,
+          controller.isReminderLoading(warranty)
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : MiniSwitch(
+                  value: warranty.isReminderEnabled,
+                  onChanged: (value) =>
+                      controller.toggleWarrantyReminder(warranty, value),
+                ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWarrantyItem(Warranty warranty) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: CareraTheme.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: CareraTheme.gray20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildEmbeddedReminderRow(warranty),
+          10.gap,
+          WarrantyCard(
+            warranty: warranty,
+            subtitle: controller.getStoreCaption(warranty),
+            onTap: () => controller.openReceiptDetail(warranty),
+          ),
         ],
       ),
     );
@@ -208,14 +343,7 @@ class WarrantyView extends GetView<WarrantyController> {
               color: CareraTheme.black,
             ),
           ),
-          4.gap,
-          Text(
-            controller.resultLabel,
-            style: AxataTextStyle.textSm.copyWith(
-              color: CareraTheme.gray70,
-            ),
-          ),
-          12.gap,
+          8.gap,
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -228,7 +356,7 @@ class WarrantyView extends GetView<WarrantyController> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
-                    vertical: 9,
+                    vertical: 6,
                   ),
                   decoration: BoxDecoration(
                     color: isSelected
@@ -316,11 +444,7 @@ class WarrantyView extends GetView<WarrantyController> {
             padding: EdgeInsets.only(
               bottom: index == section.items.length - 1 ? 0 : 12,
             ),
-            child: WarrantyCard(
-              warranty: warranty,
-              subtitle: controller.getStoreCaption(warranty),
-              onTap: () => controller.openReceiptDetail(warranty),
-            ),
+            child: _buildWarrantyItem(warranty),
           );
         }),
         18.gap,

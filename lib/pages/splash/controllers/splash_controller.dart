@@ -1,8 +1,8 @@
 // lib/pages/splash/controllers/splash_controller.dart
-
 import 'package:get/get.dart';
 import 'package:receipt_keeper/components/custom_toast.dart';
 import 'package:receipt_keeper/routes/app_pages.dart';
+import 'package:receipt_keeper/services/notification/notification_service.dart';
 import 'package:receipt_keeper/utils/global_data.dart';
 
 class SplashController extends GetxController {
@@ -19,8 +19,9 @@ class SplashController extends GetxController {
     try {
       isLoading.value = true;
 
-      // Biar splash tetap ada delay dikit (opsional)
       await Future.delayed(const Duration(seconds: 2));
+
+      await _runDailyWarrantyReminderCheck();
 
       final useBio = GlobalData.BiometrikSaatBukaAplikasi;
 
@@ -34,5 +35,15 @@ class SplashController extends GetxController {
       CustomToast.errorToast("Error", e.toString());
       isLoading.value = false;
     }
+  }
+
+  Future<void> _runDailyWarrantyReminderCheck() async {
+    if (!Get.isRegistered<NotificationService>()) {
+      return;
+    }
+
+    try {
+      await NotificationService.to.runDailyWarrantyCheck();
+    } catch (_) {}
   }
 }
