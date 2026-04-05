@@ -1,3 +1,4 @@
+import 'package:receipt_keeper/controllers/page_index_controller.dart';
 // lib/pages/warranty/controllers/warranty_controller.dart
 import 'package:get/get.dart';
 import 'package:receipt_keeper/components/custom_toast.dart';
@@ -183,6 +184,10 @@ class WarrantyController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+
+    if (Get.isRegistered<PageIndexController>()) {
+      Get.find<PageIndexController>().changeIndexPage(1);
+    }
     getInit();
   }
 

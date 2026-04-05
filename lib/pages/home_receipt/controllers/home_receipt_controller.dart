@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:receipt_keeper/components/Filter/date_filter.dart';
+import 'package:receipt_keeper/controllers/page_index_controller.dart';
 import 'package:receipt_keeper/components/custom_toast.dart';
 import 'package:receipt_keeper/helpers/delete_confirm_helper.dart';
 import 'package:receipt_keeper/helpers/feature_gate_helper.dart';
@@ -27,6 +28,8 @@ class HomeReceiptController extends GetxController {
   final FeatureGateHelper _featureGateHelper = FeatureGateHelper();
 
   final TextEditingController searchC = TextEditingController();
+  final ScrollController scrollController = ScrollController();
+  final GlobalKey filterSectionKey = GlobalKey();
 
   final RxBool isLoading = false.obs;
   final RxBool latestFirst = true.obs;
@@ -45,6 +48,9 @@ class HomeReceiptController extends GetxController {
   String get sortLabel => latestFirst.value ? 'Terbaru' : 'Terlama';
 
   int get totalReceiptCount => receiptList.length;
+
+  int get expiringSoonWarrantyCount =>
+      _warrantyDaoService.getAll().where((item) => item.isExpiringSoon).length;
 
   int get totalWarrantyCount {
     var total = 0;
@@ -100,11 +106,42 @@ class HomeReceiptController extends GetxController {
 
     final sections = <HomeReceiptSection>[];
 
-    if (todayReceipts.isNotEmpty) {
+    if (latestFirst.value) {
+      if (todayReceipts.isNotEmpty) {
+        sections.add(
+          HomeReceiptSection(
+            title: 'Hari Ini',
+            items: todayReceipts,
+          ),
+        );
+      }
+
+      if (weekReceipts.isNotEmpty) {
+        sections.add(
+          HomeReceiptSection(
+            title: 'Minggu Ini',
+            items: weekReceipts,
+          ),
+        );
+      }
+
+      if (olderReceipts.isNotEmpty) {
+        sections.add(
+          HomeReceiptSection(
+            title: 'Lainnya',
+            items: olderReceipts,
+          ),
+        );
+      }
+
+      return sections;
+    }
+
+    if (olderReceipts.isNotEmpty) {
       sections.add(
         HomeReceiptSection(
-          title: 'Hari Ini',
-          items: todayReceipts,
+          title: 'Lainnya',
+          items: olderReceipts,
         ),
       );
     }
@@ -118,11 +155,11 @@ class HomeReceiptController extends GetxController {
       );
     }
 
-    if (olderReceipts.isNotEmpty) {
+    if (todayReceipts.isNotEmpty) {
       sections.add(
         HomeReceiptSection(
-          title: 'Lainnya',
-          items: olderReceipts,
+          title: 'Hari Ini',
+          items: todayReceipts,
         ),
       );
     }
@@ -133,6 +170,10 @@ class HomeReceiptController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+
+    if (Get.isRegistered<PageIndexController>()) {
+      Get.find<PageIndexController>().changeIndexPage(0);
+    }
 
     _loadExampleReceiptId();
     _loadExampleInfoState();
@@ -150,6 +191,7 @@ class HomeReceiptController extends GetxController {
   void onClose() {
     _searchWorker?.dispose();
     searchC.dispose();
+    scrollController.dispose();
     super.onClose();
   }
 
@@ -230,6 +272,20 @@ class HomeReceiptController extends GetxController {
 
   void onSearchChanged(String value) {
     searchQuery.value = value.trim();
+  }
+
+  Future<void> focusSearchSection() async {
+    final context = filterSectionKey.currentContext;
+    if (context == null) {
+      return;
+    }
+
+    await Scrollable.ensureVisible(
+      context,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      alignment: 0.04,
+    );
   }
 
   Future<void> clearSearch() async {
@@ -347,6 +403,11 @@ class HomeReceiptController extends GetxController {
   }
 
   Future<void> openWarrantyPage() async {
+    if (Get.isRegistered<PageIndexController>()) {
+      await Get.find<PageIndexController>().changePage(1);
+      return;
+    }
+
     try {
       final result = await Get.toNamed(Routes.WARRANTY);
 
@@ -362,10 +423,20 @@ class HomeReceiptController extends GetxController {
   }
 
   Future<void> openPremiumPage() async {
+    if (Get.isRegistered<PageIndexController>()) {
+      await Get.find<PageIndexController>().changePage(3);
+      return;
+    }
+
     await Get.toNamed(Routes.PREMIUM);
   }
 
   Future<void> openSettingsPage() async {
+    if (Get.isRegistered<PageIndexController>()) {
+      await Get.find<PageIndexController>().changePage(4);
+      return;
+    }
+
     await Get.toNamed(Routes.SETTINGS);
   }
 

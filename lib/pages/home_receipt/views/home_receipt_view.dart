@@ -6,6 +6,7 @@ import 'package:receipt_keeper/components/Button/buttonfull.dart';
 import 'package:receipt_keeper/components/Card/receipt_card.dart';
 import 'package:receipt_keeper/components/Filter/date_filter_button.dart';
 import 'package:receipt_keeper/components/TextField/labeledtextfield.dart';
+import 'package:receipt_keeper/components/custom_navbar.dart';
 import 'package:receipt_keeper/components/empty_state.dart';
 import 'package:receipt_keeper/components/gap_extension.dart';
 import 'package:receipt_keeper/components/loading.dart';
@@ -25,6 +26,7 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBody: true,
       backgroundColor: _pageBackground,
       appBar: AppBar(
         toolbarHeight: 72,
@@ -39,14 +41,14 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Galeri Struk',
+              'Beranda',
               style: AxataTextStyle.text2xl.copyWith(
                 color: CareraTheme.white,
                 fontWeight: FontWeight.w700,
               ),
             ),
             Text(
-              'Simpan struk dan cek garansi dengan mudah',
+              'Struk dan garansi Anda',
               style: AxataTextStyle.textSm.copyWith(
                 color: CareraTheme.white.withValues(alpha: 0.92),
                 fontWeight: FontWeight.w500,
@@ -54,56 +56,6 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
             ),
           ],
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(999),
-              onTap: controller.openSettingsPage,
-              child: Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.22),
-                  ),
-                ),
-                child: Icon(
-                  Icons.settings_outlined,
-                  color: CareraTheme.white,
-                  size: 22,
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.only(
-              right: CareraTheme.paddingScaffold.right,
-            ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(999),
-              onTap: controller.openPremiumPage,
-              child: Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.22),
-                  ),
-                ),
-                child: Icon(
-                  Icons.workspace_premium_outlined,
-                  color: CareraTheme.white,
-                  size: 22,
-                ),
-              ),
-            ),
-          ),
-        ],
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -129,40 +81,51 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
           statusBarBrightness: Brightness.dark,
         ),
       ),
+      bottomNavigationBar: const SafeArea(child: CustomBottomNavigationBar()),
       body: Obx(() {
         if (controller.isLoading.value) {
           return const LoadingPage();
         }
 
-        return RefreshIndicator(
-          onRefresh: controller.loadReceipts,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(
-              CareraTheme.paddingScaffold.left,
-              14,
-              CareraTheme.paddingScaffold.right,
-              24,
+        return Stack(
+          children: [
+            const Positioned.fill(
+              child: IgnorePointer(
+                child: _HomeTopDecoration(),
+              ),
             ),
-            children: [
-              _buildHeroSection(),
-              if (controller.showExampleInfoCard) ...[
-                12.gap,
-                _buildExampleInfoCard(),
-              ],
-              16.gap,
-              _buildListHeader(),
-              12.gap,
-              _buildFilterSection(),
-              16.gap,
-              if (controller.receiptList.isEmpty) _buildEmptyState(),
-              if (controller.receiptList.isNotEmpty)
-                ...controller.groupedReceiptSections.map(
-                  (section) => _buildSection(section.title, section.items),
+            RefreshIndicator(
+              onRefresh: controller.loadReceipts,
+              child: ListView(
+                controller: controller.scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(
+                  CareraTheme.paddingScaffold.left,
+                  14,
+                  CareraTheme.paddingScaffold.right,
+                  120,
                 ),
-              8.gap,
-            ],
-          ),
+                children: [
+                  _buildHeroSection(),
+                  if (controller.showExampleInfoCard) ...[
+                    12.gap,
+                    _buildExampleInfoCard(),
+                  ],
+                  16.gap,
+                  _buildListHeader(),
+                  12.gap,
+                  _buildFilterSection(),
+                  16.gap,
+                  if (controller.receiptList.isEmpty) _buildEmptyState(),
+                  if (controller.receiptList.isNotEmpty)
+                    ...controller.groupedReceiptSections.map(
+                      (section) => _buildSection(section.title, section.items),
+                    ),
+                  8.gap,
+                ],
+              ),
+            ),
+          ],
         );
       }),
     );
@@ -170,6 +133,7 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
 
   Widget _buildHeroSection() {
     final hasData = controller.receiptList.isNotEmpty;
+    final expiringSoonCount = controller.expiringSoonWarrantyCount;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -207,13 +171,13 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  Icons.receipt_long_outlined,
+                  Icons.dashboard_customize_outlined,
                   size: 16,
                   color: CareraTheme.white,
                 ),
                 6.wGap,
                 Text(
-                  hasData ? 'Semua struk Anda ada di sini' : 'Mulai dari sini',
+                  hasData ? 'Ringkasan hari ini' : 'Mulai dari sini',
                   style: AxataTextStyle.textSm.copyWith(
                     color: CareraTheme.white,
                     fontWeight: FontWeight.w600,
@@ -225,8 +189,8 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
           14.gap,
           Text(
             hasData
-                ? 'Tambah struk baru\natau buka struk yang sudah tersimpan'
-                : 'Mulai simpan struk pertama Anda',
+                ? 'Semua struk tersimpan rapi\ndan siap dicari kapan saja'
+                : 'Simpan struk pertama Anda\ndari tombol Scan di bawah',
             style: AxataTextStyle.text2xl.copyWith(
               color: CareraTheme.white,
               fontWeight: FontWeight.w700,
@@ -236,25 +200,12 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
           8.gap,
           Text(
             hasData
-                ? 'Tap salah satu struk di bawah untuk lihat detail, edit, atau export.'
-                : 'Scan struk belanja agar tersimpan rapi dan mudah dicari saat dibutuhkan.',
+                ? 'Pakai tombol Scan di bawah untuk tambah struk baru, lalu cek garansi atau cari struk lama dari halaman ini.'
+                : 'Anda bisa scan dari kamera, pilih dari galeri, atau isi manual dari tombol tengah di navbar.',
             style: AxataTextStyle.textSm.copyWith(
               color: CareraTheme.white.withValues(alpha: 0.94),
               height: 1.45,
             ),
-          ),
-          16.gap,
-          ButtonFull(
-            middleText: 'Scan Struk Baru',
-            icon: Icons.document_scanner_outlined,
-            ontap: controller.openScanReceipt,
-          ),
-          10.gap,
-          ButtonFull(
-            middleText: 'Input Manual',
-            icon: Icons.edit_note_outlined,
-            colorOpposite: true,
-            ontap: controller.openManualReceipt,
           ),
           16.gap,
           Row(
@@ -269,7 +220,7 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
               10.wGap,
               Expanded(
                 child: _buildHeroStatCard(
-                  title: 'Total Garansi',
+                  title: 'Garansi Aktif',
                   value: '${controller.totalWarrantyCount}',
                   icon: Icons.verified_outlined,
                 ),
@@ -277,7 +228,29 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
             ],
           ),
           12.gap,
-          _buildWarrantyQuickAction(),
+          _buildUrgentWarrantyCard(expiringSoonCount),
+          12.gap,
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickActionButton(
+                  title: 'Lihat Garansi',
+                  subtitle: 'Cek semua garansi',
+                  icon: Icons.verified_outlined,
+                  onTap: controller.openWarrantyPage,
+                ),
+              ),
+              10.wGap,
+              Expanded(
+                child: _buildQuickActionButton(
+                  title: 'Cari Struk',
+                  subtitle: 'Lompat ke pencarian',
+                  icon: Icons.search,
+                  onTap: controller.focusSearchSection,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -338,7 +311,11 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
     );
   }
 
-  Widget _buildWarrantyQuickAction() {
+  Widget _buildUrgentWarrantyCard(int expiringSoonCount) {
+    final subtitle = expiringSoonCount > 0
+        ? '$expiringSoonCount garansi perlu dicek lebih dulu agar tidak terlewat.'
+        : 'Belum ada garansi yang mendesak saat ini.';
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -346,10 +323,7 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
         borderRadius: BorderRadius.circular(18),
         child: Ink(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 14,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
             color: CareraTheme.white.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(18),
@@ -367,7 +341,9 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  Icons.verified_outlined,
+                  expiringSoonCount > 0
+                      ? Icons.schedule_outlined
+                      : Icons.shield_outlined,
                   color: CareraTheme.white,
                   size: 20,
                 ),
@@ -378,7 +354,9 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Lihat Garansi',
+                      expiringSoonCount > 0
+                          ? 'Garansi Segera Habis'
+                          : 'Status Garansi Aman',
                       style: AxataTextStyle.textBase.copyWith(
                         color: CareraTheme.white,
                         fontWeight: FontWeight.w700,
@@ -386,7 +364,7 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
                     ),
                     4.gap,
                     Text(
-                      'Cek semua barang yang masih bergaransi',
+                      subtitle,
                       style: AxataTextStyle.textSm.copyWith(
                         color: CareraTheme.white.withValues(alpha: 0.92),
                         height: 1.35,
@@ -395,10 +373,79 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
                   ],
                 ),
               ),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 14,
-                color: CareraTheme.white.withValues(alpha: 0.92),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: CareraTheme.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '$expiringSoonCount',
+                  style: AxataTextStyle.textSm.copyWith(
+                    color: CareraTheme.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionButton({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: CareraTheme.white.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: CareraTheme.white.withValues(alpha: 0.16),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: CareraTheme.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  size: 18,
+                  color: CareraTheme.white,
+                ),
+              ),
+              12.gap,
+              Text(
+                title,
+                style: AxataTextStyle.textBase.copyWith(
+                  color: CareraTheme.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              4.gap,
+              Text(
+                subtitle,
+                style: AxataTextStyle.textSm.copyWith(
+                  color: CareraTheme.white.withValues(alpha: 0.92),
+                  height: 1.35,
+                ),
               ),
             ],
           ),
@@ -506,6 +553,7 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
 
   Widget _buildFilterSection() {
     return Container(
+      key: controller.filterSectionKey,
       padding: const EdgeInsets.all(14),
       decoration: _cardDecoration(),
       child: Column(
@@ -808,11 +856,11 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
             icon: Icons.receipt_long_outlined,
             title: 'Belum ada struk',
             message:
-                'Mulai dengan scan struk baru atau tambahkan struk secara manual.',
+                'Mulai dengan scan struk pertama atau tambahkan struk secara manual.',
           ),
           18.gap,
           ButtonFull(
-            middleText: 'Scan Struk Baru',
+            middleText: 'Scan Struk Pertama',
             icon: Icons.document_scanner_outlined,
             ontap: controller.openScanReceipt,
           ),
@@ -842,6 +890,342 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
           offset: const Offset(0, 10),
         ),
       ],
+    );
+  }
+}
+
+class _HomeTopDecoration extends StatelessWidget {
+  const _HomeTopDecoration();
+
+  static const Color _cyan = Color(0xFF25C7D8);
+  static const Color _blue = Color(0xFF0F7EB3);
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: SizedBox(
+        height: 360,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      _cyan.withValues(alpha: 0.10),
+                      _blue.withValues(alpha: 0.08),
+                      Colors.white.withValues(alpha: 0.00),
+                    ],
+                    stops: const [0.0, 0.45, 1.0],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: -70,
+              left: -55,
+              child: Container(
+                width: 220,
+                height: 220,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      _cyan.withValues(alpha: 0.22),
+                      _cyan.withValues(alpha: 0.06),
+                      _cyan.withValues(alpha: 0.00),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: -35,
+              right: -30,
+              child: Container(
+                width: 180,
+                height: 180,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      _blue.withValues(alpha: 0.18),
+                      _blue.withValues(alpha: 0.05),
+                      _blue.withValues(alpha: 0.00),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 42,
+              right: 22,
+              child: Transform.rotate(
+                angle: -0.16,
+                child: const _ReceiptGhostCard(
+                  width: 112,
+                  height: 132,
+                  accentColor: _cyan,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 98,
+              left: 22,
+              child: Transform.rotate(
+                angle: 0.14,
+                child: const _ReceiptGhostCard(
+                  width: 92,
+                  height: 112,
+                  accentColor: _blue,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 116,
+              right: 112,
+              child: Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.42),
+                  border: Border.all(
+                    color: _cyan.withValues(alpha: 0.20),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _blue.withValues(alpha: 0.08),
+                      blurRadius: 18,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.verified_outlined,
+                  color: _blue.withValues(alpha: 0.70),
+                  size: 24,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 184,
+              left: 26,
+              right: 26,
+              child: Container(
+                height: 1,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      _cyan.withValues(alpha: 0.20),
+                      _blue.withValues(alpha: 0.12),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 214,
+              left: 28,
+              right: 28,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(
+                  18,
+                  (index) => Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _blue.withValues(alpha: 0.10),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                height: 130,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withValues(alpha: 0.00),
+                      Colors.white.withValues(alpha: 0.58),
+                      Colors.white.withValues(alpha: 0.96),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReceiptGhostCard extends StatelessWidget {
+  const _ReceiptGhostCard({
+    required this.width,
+    required this.height,
+    required this.accentColor,
+  });
+
+  final double width;
+  final double height;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCompact = height <= 116;
+
+    final horizontalPadding = isCompact ? 10.0 : 12.0;
+    final verticalPadding = isCompact ? 10.0 : 12.0;
+
+    final topBoxSize = isCompact ? 18.0 : 22.0;
+    final topBoxRadius = isCompact ? 6.0 : 8.0;
+    final topIconSize = isCompact ? 10.0 : 12.0;
+
+    final topRightWidth = isCompact ? 16.0 : 18.0;
+    final topRightHeight = isCompact ? 5.0 : 6.0;
+
+    final lineHeight = isCompact ? 5.0 : 7.0;
+    final gapLarge = isCompact ? 8.0 : 12.0;
+    final gapSmall = isCompact ? 5.0 : 7.0;
+
+    final bottomBarHeight = isCompact ? 7.0 : 8.0;
+    final badgeSize = isCompact ? 22.0 : 28.0;
+    final badgeIconSize = isCompact ? 12.0 : 14.0;
+    final bottomGap = isCompact ? 6.0 : 8.0;
+
+    return Container(
+      width: width,
+      height: height,
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: verticalPadding,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(isCompact ? 20 : 24),
+        border: Border.all(
+          color: accentColor.withValues(alpha: 0.16),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: accentColor.withValues(alpha: 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: topBoxSize,
+                height: topBoxSize,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(topBoxRadius),
+                ),
+                child: Icon(
+                  Icons.receipt_long_outlined,
+                  size: topIconSize,
+                  color: accentColor.withValues(alpha: 0.75),
+                ),
+              ),
+              const Spacer(),
+              Container(
+                width: topRightWidth,
+                height: topRightHeight,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: gapLarge),
+          _line(
+            widthFactor: 1.0,
+            accentColor: accentColor,
+            lineHeight: lineHeight,
+          ),
+          SizedBox(height: gapSmall),
+          _line(
+            widthFactor: 0.82,
+            accentColor: accentColor,
+            lineHeight: lineHeight,
+          ),
+          SizedBox(height: gapSmall),
+          _line(
+            widthFactor: 0.92,
+            accentColor: accentColor,
+            lineHeight: lineHeight,
+          ),
+          const Spacer(),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: bottomBarHeight,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.11),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              SizedBox(width: bottomGap),
+              Container(
+                width: badgeSize,
+                height: badgeSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: accentColor.withValues(alpha: 0.10),
+                ),
+                child: Icon(
+                  Icons.check_circle_outline,
+                  size: badgeIconSize,
+                  color: accentColor.withValues(alpha: 0.75),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _line({
+    required double widthFactor,
+    required Color accentColor,
+    required double lineHeight,
+  }) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: FractionallySizedBox(
+        widthFactor: widthFactor,
+        child: Container(
+          height: lineHeight,
+          decoration: BoxDecoration(
+            color: accentColor.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -59,19 +59,22 @@ class AppPages {
       name: Routes.WARRANTY,
       page: () => const WarrantyView(),
       binding: WarrantyBinding(),
-      transition: Transition.rightToLeft,
+      transition: Transition.fadeIn,
+      transitionDuration: const Duration(milliseconds: 500),
     ),
     GetPage(
       name: Routes.PREMIUM,
       page: () => const PremiumView(),
       binding: PremiumBinding(),
-      transition: Transition.rightToLeft,
+      transition: Transition.fadeIn,
+      transitionDuration: const Duration(milliseconds: 500),
     ),
     GetPage(
       name: Routes.SETTINGS,
       page: () => const SettingsView(),
       binding: SettingsBinding(),
-      transition: Transition.rightToLeft,
+      transition: Transition.fadeIn,
+      transitionDuration: const Duration(milliseconds: 500),
     ),
   ];
 }

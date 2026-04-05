@@ -9,6 +9,7 @@ import 'package:receipt_keeper/components/gap_extension.dart';
 import 'package:receipt_keeper/components/loading.dart';
 import 'package:receipt_keeper/pages/premium/controllers/premium_controller.dart';
 import 'package:receipt_keeper/utils/theme.dart';
+import 'package:receipt_keeper/components/custom_navbar.dart';
 
 class PremiumView extends GetView<PremiumController> {
   const PremiumView({super.key});
@@ -17,71 +18,73 @@ class PremiumView extends GetView<PremiumController> {
   Widget build(BuildContext context) {
     return Obx(() {
       return Scaffold(
+        extendBody: true,
         appBar: const CustomAppBar(
           title: 'Premium',
           theme: 'normal',
+          showBackButton: false,
         ),
+        bottomNavigationBar: const SafeArea(child: CustomBottomNavigationBar()),
         body: controller.isLoading.value
             ? const LoadingPage()
-            : SafeArea(
-                child: ListView(
-                  padding: EdgeInsets.fromLTRB(
-                    CareraTheme.paddingScaffold.left,
-                    16,
-                    CareraTheme.paddingScaffold.right,
-                    24,
-                  ),
-                  children: [
-                    _buildHeroCard(),
-                    16.gap,
-                    _buildBenefitCard(),
-                    16.gap,
-                    _buildProductSection(),
-                    16.gap,
-                    _buildPlanComparisonCard(),
-                    if (controller.storeMessage.value.trim().isNotEmpty) ...[
-                      16.gap,
-                      _buildStoreMessageCard(),
-                    ],
-                    if (controller.notFoundProductIds.isNotEmpty) ...[
-                      16.gap,
-                      _buildNotFoundProductCard(),
-                    ],
-                    16.gap,
-                    _buildRestoreInfoCard(),
-                    20.gap,
-                    ButtonFull(
-                      middleText: controller.upgradeButtonText,
-                      icon: Icons.workspace_premium_outlined,
-                      readOnly: controller.isPremiumActive.value ||
-                          controller.isPurchasing.value ||
-                          !controller.isStoreAvailable.value ||
-                          controller.isLoadingProducts.value ||
-                          controller.selectedProduct == null,
-                      ontap: controller.isPremiumActive.value ||
-                              controller.isPurchasing.value ||
-                              !controller.isStoreAvailable.value ||
-                              controller.isLoadingProducts.value ||
-                              controller.selectedProduct == null
-                          ? null
-                          : controller.purchaseSelectedProduct,
-                    ),
-                    10.gap,
-                    ButtonFull(
-                      middleText: controller.isRestoring.value
-                          ? 'Memulihkan Pembelian...'
-                          : 'Restore Pembelian',
-                      icon: Icons.restore_outlined,
-                      colorOpposite: true,
-                      readOnly: controller.isRestoring.value ||
-                          !controller.isStoreAvailable.value,
-                      ontap: controller.isRestoring.value ||
-                              !controller.isStoreAvailable.value
-                          ? null
-                          : controller.restorePremium,
-                    ),
-                  ],
+            : ListView(
+                padding: EdgeInsets.fromLTRB(
+                  CareraTheme.paddingScaffold.left,
+                  16,
+                  CareraTheme.paddingScaffold.right,
+                  24,
                 ),
+                children: [
+                  _buildHeroCard(),
+                  16.gap,
+                  _buildBenefitCard(),
+                  16.gap,
+                  _buildProductSection(),
+                  16.gap,
+                  _buildPlanComparisonCard(),
+                  if (controller.storeMessage.value.trim().isNotEmpty) ...[
+                    16.gap,
+                    _buildStoreMessageCard(),
+                  ],
+                  if (controller.notFoundProductIds.isNotEmpty) ...[
+                    16.gap,
+                    _buildNotFoundProductCard(),
+                  ],
+                  16.gap,
+                  _buildRestoreInfoCard(),
+                  20.gap,
+                  ButtonFull(
+                    middleText: controller.upgradeButtonText,
+                    icon: Icons.workspace_premium_outlined,
+                    readOnly: controller.isPremiumActive.value ||
+                        controller.isPurchasing.value ||
+                        !controller.isStoreAvailable.value ||
+                        controller.isLoadingProducts.value ||
+                        controller.selectedProduct == null,
+                    ontap: controller.isPremiumActive.value ||
+                            controller.isPurchasing.value ||
+                            !controller.isStoreAvailable.value ||
+                            controller.isLoadingProducts.value ||
+                            controller.selectedProduct == null
+                        ? null
+                        : controller.purchaseSelectedProduct,
+                  ),
+                  10.gap,
+                  ButtonFull(
+                    middleText: controller.isRestoring.value
+                        ? 'Memulihkan Pembelian...'
+                        : 'Restore Pembelian',
+                    icon: Icons.restore_outlined,
+                    colorOpposite: true,
+                    readOnly: controller.isRestoring.value ||
+                        !controller.isStoreAvailable.value,
+                    ontap: controller.isRestoring.value ||
+                            !controller.isStoreAvailable.value
+                        ? null
+                        : controller.restorePremium,
+                  ),
+                  120.gap,
+                ],
               ),
       );
     });

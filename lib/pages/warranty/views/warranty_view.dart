@@ -10,6 +10,7 @@ import 'package:receipt_keeper/components/mini_switch.dart';
 import 'package:receipt_keeper/models/warranty.dart';
 import 'package:receipt_keeper/pages/warranty/controllers/warranty_controller.dart';
 import 'package:receipt_keeper/utils/theme.dart';
+import 'package:receipt_keeper/components/custom_navbar.dart';
 
 class WarrantyView extends GetView<WarrantyController> {
   const WarrantyView({super.key});
@@ -18,50 +19,49 @@ class WarrantyView extends GetView<WarrantyController> {
   Widget build(BuildContext context) {
     return Obx(() {
       return Scaffold(
+        extendBody: true,
         appBar: const CustomAppBar(
           title: 'Garansi',
           theme: 'normal',
+          showBackButton: false,
         ),
+        bottomNavigationBar: const SafeArea(child: CustomBottomNavigationBar()),
         body: controller.isLoading.value
             ? const LoadingPage()
-            : SafeArea(
-                child: Padding(
-                  padding: CareraTheme.paddingScaffold,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeroCard(),
-                      16.gap,
-                      _buildFilterCard(),
-                      16.gap,
-                      Expanded(
-                        child: RefreshIndicator(
-                          onRefresh: controller.loadWarranties,
-                          child: controller.hasFilteredData
-                              ? ListView(
-                                  physics:
-                                      const AlwaysScrollableScrollPhysics(),
-                                  children: controller.groupedSections
-                                      .map(_buildSection)
-                                      .toList(),
-                                )
-                              : ListView(
-                                  physics:
-                                      const AlwaysScrollableScrollPhysics(),
-                                  children: [
-                                    const SizedBox(height: 80),
-                                    EmptyState(
-                                      useExpanded: false,
-                                      icon: Icons.verified_outlined,
-                                      title: controller.emptyTitle,
-                                      message: controller.emptyMessage,
-                                    ),
-                                  ],
-                                ),
-                        ),
+            : Padding(
+                padding: CareraTheme.paddingScaffold,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeroCard(),
+                    16.gap,
+                    _buildFilterCard(),
+                    16.gap,
+                    Expanded(
+                      child: RefreshIndicator(
+                        onRefresh: controller.loadWarranties,
+                        child: controller.hasFilteredData
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: controller.groupedSections
+                                    .map(_buildSection)
+                                    .toList(),
+                              )
+                            : ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: [
+                                  const SizedBox(height: 80),
+                                  EmptyState(
+                                    useExpanded: false,
+                                    icon: Icons.verified_outlined,
+                                    title: controller.emptyTitle,
+                                    message: controller.emptyMessage,
+                                  ),
+                                ],
+                              ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
       );

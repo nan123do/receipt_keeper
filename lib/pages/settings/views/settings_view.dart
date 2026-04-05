@@ -7,6 +7,7 @@ import 'package:receipt_keeper/components/loading.dart';
 import 'package:receipt_keeper/components/mini_switch.dart';
 import 'package:receipt_keeper/pages/settings/controllers/settings_controller.dart';
 import 'package:receipt_keeper/utils/theme.dart';
+import 'package:receipt_keeper/components/custom_navbar.dart';
 
 class SettingsView extends GetView<SettingsController> {
   const SettingsView({super.key});
@@ -15,190 +16,192 @@ class SettingsView extends GetView<SettingsController> {
   Widget build(BuildContext context) {
     return Obx(() {
       return Scaffold(
+        extendBody: true,
         appBar: const CustomAppBar(
           title: 'Pengaturan',
           theme: 'normal',
+          showBackButton: false,
         ),
+        bottomNavigationBar: const SafeArea(child: CustomBottomNavigationBar()),
         body: controller.isLoading.value
             ? const LoadingPage()
-            : SafeArea(
-                child: RefreshIndicator(
-                  onRefresh: controller.loadSettings,
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: EdgeInsets.fromLTRB(
-                      CareraTheme.paddingScaffold.left,
-                      16,
-                      CareraTheme.paddingScaffold.right,
-                      24,
-                    ),
-                    children: [
-                      _buildHeroCard(),
-                      16.gap,
-                      _buildPreferenceCard(
-                        title: 'Keamanan & Garansi',
-                        children: [
-                          _buildSwitchTile(
-                            icon: Icons.fingerprint_outlined,
-                            title: 'Biometrik saat buka aplikasi',
-                            subtitle:
-                                'Aktifkan bila Anda ingin aplikasi mengikuti pengaturan biometrik saat dibuka.',
-                            value: controller.biometricOnAppOpen.value,
-                            onChanged: controller.toggleBiometric,
-                          ),
-                          _buildDivider(),
-                          _buildValueTile(
-                            icon: Icons.verified_outlined,
-                            title: 'Durasi garansi default',
-                            subtitle:
-                                'Dipakai sebagai nilai awal saat Anda menandai item bergaransi.',
-                            value: controller.defaultWarrantyLabel,
-                            onTap: controller.selectDefaultWarrantyMonths,
-                          ),
-                        ],
-                      ),
-                      16.gap,
-                      _buildPreferenceCard(
-                        title: 'Notifikasi',
-                        children: [
-                          _buildSwitchTile(
-                            icon: Icons.notifications_active_outlined,
-                            title: 'Notifikasi garansi',
-                            subtitle:
-                                'Aktifkan pengingat global untuk fitur garansi.',
-                            value: controller.notificationEnabled.value,
-                            onChanged: controller.toggleNotificationEnabled,
-                          ),
-                          _buildDivider(),
-                          _buildValueTile(
-                            icon: Icons.schedule_outlined,
-                            title: 'Pengingat awal',
-                            subtitle: controller.notificationEnabled.value
-                                ? 'Atur kapan pengingat pertama dikirim sebelum garansi habis.'
-                                : 'Aktifkan notifikasi global dulu untuk memakai pengingat ini.',
-                            value: 'H-${controller.warrantyReminderDays.value}',
-                            onTap: controller.notificationEnabled.value
-                                ? controller.selectWarrantyReminderDays
-                                : null,
-                          ),
-                        ],
-                      ),
-                      16.gap,
-                      _buildPreferenceCard(
-                        title: 'Scan',
-                        children: [
-                          _buildSwitchTile(
-                            icon: Icons.auto_fix_high_outlined,
-                            title: 'OCR otomatis',
-                            subtitle:
-                                'Jika aktif, OCR langsung berjalan setelah gambar struk dipilih.',
-                            value: controller.scanAutoProcessOcr.value,
-                            onChanged: controller.toggleScanAutoProcessOcr,
-                          ),
-                          _buildDivider(),
-                          _buildValueTile(
-                            icon: Icons.photo_camera_back_outlined,
-                            title: 'Sumber scan utama',
-                            subtitle:
-                                'Atur sumber yang paling sering Anda pakai saat scan struk.',
-                            value: controller.scanPreferredSource.value ==
-                                    'gallery'
-                                ? 'Galeri'
-                                : 'Kamera',
-                            onTap: controller.selectPreferredSource,
-                          ),
-                        ],
-                      ),
-                      16.gap,
-                      _buildPreferenceCard(
-                        title: 'Backup & Restore',
-                        children: [
-                          _buildValueTile(
-                            icon: Icons.backup_outlined,
-                            title: 'Backup lokal',
-                            subtitle:
-                                'Simpan salinan database ke penyimpanan lokal aplikasi.',
-                            value: controller.isBackupProcessing.value
-                                ? 'Memproses...'
-                                : 'Buat backup',
-                            onTap: controller.isBackupProcessing.value
-                                ? null
-                                : controller.createLocalBackup,
-                          ),
-                          _buildDivider(),
-                          _buildValueTile(
-                            icon: Icons.restore_outlined,
-                            title: 'Restore data',
-                            subtitle:
-                                'Pulihkan database dari backup lokal terbaru. Data saat ini akan ditimpa.',
-                            value: controller.isBackupProcessing.value
-                                ? 'Memproses...'
-                                : 'Restore',
-                            onTap: controller.isBackupProcessing.value ||
-                                    !controller.hasLocalBackup
-                                ? null
-                                : controller.restoreLatestLocalBackup,
-                          ),
-                          _buildDivider(),
-                          _buildValueTile(
-                            icon: Icons.history_outlined,
-                            title: 'Backup terakhir',
-                            subtitle:
-                                'Waktu pembuatan backup lokal yang terakhir berhasil disimpan.',
-                            value: controller.localBackupLastAtLabel,
-                          ),
-                          _buildDivider(),
-                          _buildValueTile(
-                            icon: Icons.description_outlined,
-                            title: 'File backup terakhir',
-                            subtitle:
-                                'Nama file backup lokal terakhir untuk memudahkan pengecekan.',
-                            value: controller.localBackupLastFileNameLabel,
-                            isValueBelowSubtitle: true,
-                          ),
-                          _buildDivider(),
-                          _buildValueTile(
-                            icon: Icons.cloud_outlined,
-                            title: 'Backup cloud premium',
-                            subtitle:
-                                'Placeholder premium. Backup cloud belum tersedia pada versi ini.',
-                            value: controller.cloudBackupLabel,
-                            onTap: controller.showCloudBackupPlaceholder,
-                          ),
-                          14.gap,
-                          _buildWarningBox(
-                            title: 'Perhatian',
-                            message:
-                                'Restore akan menimpa data saat ini. Sebaiknya buat backup lokal baru dulu sebelum memulihkan data lama.',
-                          ),
-                        ],
-                      ),
-                      16.gap,
-                      _buildPreferenceCard(
-                        title: 'Aplikasi',
-                        children: [
-                          _buildValueTile(
-                            icon: Icons.info_outline,
-                            title: 'Versi aplikasi',
-                            subtitle:
-                                'Versi build yang sedang terpasang di perangkat Anda.',
-                            value: SettingsController.appVersion,
-                          ),
-                          _buildDivider(),
-                          _buildValueTile(
-                            icon: Icons.workspace_premium_outlined,
-                            title: 'Premium',
-                            subtitle:
-                                'Buka paket premium untuk fitur yang lebih leluasa.',
-                            value: 'Lihat paket',
-                            onTap: controller.openPremiumPage,
-                          ),
-                        ],
-                      ),
-                      16.gap,
-                      _buildHelpCard(),
-                    ],
+            : RefreshIndicator(
+                onRefresh: controller.loadSettings,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.fromLTRB(
+                    CareraTheme.paddingScaffold.left,
+                    16,
+                    CareraTheme.paddingScaffold.right,
+                    24,
                   ),
+                  children: [
+                    _buildHeroCard(),
+                    16.gap,
+                    _buildPreferenceCard(
+                      title: 'Keamanan & Garansi',
+                      children: [
+                        _buildSwitchTile(
+                          icon: Icons.fingerprint_outlined,
+                          title: 'Biometrik saat buka aplikasi',
+                          subtitle:
+                              'Aktifkan bila Anda ingin aplikasi mengikuti pengaturan biometrik saat dibuka.',
+                          value: controller.biometricOnAppOpen.value,
+                          onChanged: controller.toggleBiometric,
+                        ),
+                        _buildDivider(),
+                        _buildValueTile(
+                          icon: Icons.verified_outlined,
+                          title: 'Durasi garansi default',
+                          subtitle:
+                              'Dipakai sebagai nilai awal saat Anda menandai item bergaransi.',
+                          value: controller.defaultWarrantyLabel,
+                          onTap: controller.selectDefaultWarrantyMonths,
+                        ),
+                      ],
+                    ),
+                    16.gap,
+                    _buildPreferenceCard(
+                      title: 'Notifikasi',
+                      children: [
+                        _buildSwitchTile(
+                          icon: Icons.notifications_active_outlined,
+                          title: 'Notifikasi garansi',
+                          subtitle:
+                              'Aktifkan pengingat global untuk fitur garansi.',
+                          value: controller.notificationEnabled.value,
+                          onChanged: controller.toggleNotificationEnabled,
+                        ),
+                        _buildDivider(),
+                        _buildValueTile(
+                          icon: Icons.schedule_outlined,
+                          title: 'Pengingat awal',
+                          subtitle: controller.notificationEnabled.value
+                              ? 'Atur kapan pengingat pertama dikirim sebelum garansi habis.'
+                              : 'Aktifkan notifikasi global dulu untuk memakai pengingat ini.',
+                          value: 'H-${controller.warrantyReminderDays.value}',
+                          onTap: controller.notificationEnabled.value
+                              ? controller.selectWarrantyReminderDays
+                              : null,
+                        ),
+                      ],
+                    ),
+                    16.gap,
+                    _buildPreferenceCard(
+                      title: 'Scan',
+                      children: [
+                        _buildSwitchTile(
+                          icon: Icons.auto_fix_high_outlined,
+                          title: 'OCR otomatis',
+                          subtitle:
+                              'Jika aktif, OCR langsung berjalan setelah gambar struk dipilih.',
+                          value: controller.scanAutoProcessOcr.value,
+                          onChanged: controller.toggleScanAutoProcessOcr,
+                        ),
+                        _buildDivider(),
+                        _buildValueTile(
+                          icon: Icons.photo_camera_back_outlined,
+                          title: 'Sumber scan utama',
+                          subtitle:
+                              'Atur sumber yang paling sering Anda pakai saat scan struk.',
+                          value:
+                              controller.scanPreferredSource.value == 'gallery'
+                                  ? 'Galeri'
+                                  : 'Kamera',
+                          onTap: controller.selectPreferredSource,
+                        ),
+                      ],
+                    ),
+                    16.gap,
+                    _buildPreferenceCard(
+                      title: 'Backup & Restore',
+                      children: [
+                        _buildValueTile(
+                          icon: Icons.backup_outlined,
+                          title: 'Backup lokal',
+                          subtitle:
+                              'Simpan salinan database ke penyimpanan lokal aplikasi.',
+                          value: controller.isBackupProcessing.value
+                              ? 'Memproses...'
+                              : 'Buat backup',
+                          onTap: controller.isBackupProcessing.value
+                              ? null
+                              : controller.createLocalBackup,
+                        ),
+                        _buildDivider(),
+                        _buildValueTile(
+                          icon: Icons.restore_outlined,
+                          title: 'Restore data',
+                          subtitle:
+                              'Pulihkan database dari backup lokal terbaru. Data saat ini akan ditimpa.',
+                          value: controller.isBackupProcessing.value
+                              ? 'Memproses...'
+                              : 'Restore',
+                          onTap: controller.isBackupProcessing.value ||
+                                  !controller.hasLocalBackup
+                              ? null
+                              : controller.restoreLatestLocalBackup,
+                        ),
+                        _buildDivider(),
+                        _buildValueTile(
+                          icon: Icons.history_outlined,
+                          title: 'Backup terakhir',
+                          subtitle:
+                              'Waktu pembuatan backup lokal yang terakhir berhasil disimpan.',
+                          value: controller.localBackupLastAtLabel,
+                        ),
+                        _buildDivider(),
+                        _buildValueTile(
+                          icon: Icons.description_outlined,
+                          title: 'File backup terakhir',
+                          subtitle:
+                              'Nama file backup lokal terakhir untuk memudahkan pengecekan.',
+                          value: controller.localBackupLastFileNameLabel,
+                          isValueBelowSubtitle: true,
+                        ),
+                        _buildDivider(),
+                        _buildValueTile(
+                          icon: Icons.cloud_outlined,
+                          title: 'Backup cloud premium',
+                          subtitle:
+                              'Placeholder premium. Backup cloud belum tersedia pada versi ini.',
+                          value: controller.cloudBackupLabel,
+                          onTap: controller.showCloudBackupPlaceholder,
+                        ),
+                        14.gap,
+                        _buildWarningBox(
+                          title: 'Perhatian',
+                          message:
+                              'Restore akan menimpa data saat ini. Sebaiknya buat backup lokal baru dulu sebelum memulihkan data lama.',
+                        ),
+                      ],
+                    ),
+                    16.gap,
+                    _buildPreferenceCard(
+                      title: 'Aplikasi',
+                      children: [
+                        _buildValueTile(
+                          icon: Icons.info_outline,
+                          title: 'Versi aplikasi',
+                          subtitle:
+                              'Versi build yang sedang terpasang di perangkat Anda.',
+                          value: SettingsController.appVersion,
+                        ),
+                        _buildDivider(),
+                        _buildValueTile(
+                          icon: Icons.workspace_premium_outlined,
+                          title: 'Premium',
+                          subtitle:
+                              'Buka paket premium untuk fitur yang lebih leluasa.',
+                          value: 'Lihat paket',
+                          onTap: controller.openPremiumPage,
+                        ),
+                      ],
+                    ),
+                    16.gap,
+                    _buildHelpCard(),
+                    120.gap,
+                  ],
                 ),
               ),
       );

@@ -1,3 +1,4 @@
+import 'package:receipt_keeper/controllers/page_index_controller.dart';
 // lib/pages/settings/controllers/settings_controller.dart
 import 'dart:io';
 
@@ -102,6 +103,10 @@ class SettingsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+
+    if (Get.isRegistered<PageIndexController>()) {
+      Get.find<PageIndexController>().changeIndexPage(4);
+    }
     getInit();
   }
 

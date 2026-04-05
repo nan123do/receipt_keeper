@@ -35,6 +35,9 @@ class ScanReceiptController extends GetxController {
   final RxnString ocrErrorMessage = RxnString();
   final Rx<OcrResultModel> ocrResult = OcrResultModel.empty().obs;
 
+  String? _initialSource;
+  bool _hasProcessedInitialSource = false;
+
   bool get hasSelectedImage {
     final value = selectedImagePath.value?.trim();
     return value != null && value.isNotEmpty;
@@ -146,6 +149,47 @@ class ScanReceiptController extends GetxController {
   void onInit() {
     super.onInit();
     _loadScanPreferences();
+    _loadInitialArgument();
+  }
+
+  @override
+  void onReady() {
+    super.onReady();
+    _handleInitialSource();
+  }
+
+  void _loadInitialArgument() {
+    final arguments = Get.arguments;
+
+    if (arguments is Map) {
+      final source = (arguments['initialSource'] ?? '').toString().trim();
+      if (source == 'camera' || source == 'gallery') {
+        _initialSource = source;
+      }
+      return;
+    }
+
+    final source = (arguments ?? '').toString().trim();
+    if (source == 'camera' || source == 'gallery') {
+      _initialSource = source;
+    }
+  }
+
+  Future<void> _handleInitialSource() async {
+    if (_hasProcessedInitialSource) {
+      return;
+    }
+
+    _hasProcessedInitialSource = true;
+
+    if (_initialSource == 'gallery') {
+      await pickFromGallery();
+      return;
+    }
+
+    if (_initialSource == 'camera') {
+      await pickFromCamera();
+    }
   }
 
   void _loadScanPreferences() {

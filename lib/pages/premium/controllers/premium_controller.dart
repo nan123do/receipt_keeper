@@ -1,3 +1,4 @@
+import 'package:receipt_keeper/controllers/page_index_controller.dart';
 // lib/pages/premium/controllers/premium_controller.dart
 import 'package:get/get.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
@@ -122,6 +123,10 @@ class PremiumController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+
+    if (Get.isRegistered<PageIndexController>()) {
+      Get.find<PageIndexController>().changeIndexPage(3);
+    }
     _bindServiceState();
     getInit();
   }

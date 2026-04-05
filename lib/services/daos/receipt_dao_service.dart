@@ -33,12 +33,12 @@ class ReceiptDaoService {
     if (q.isNotEmpty) {
       where.add(
         '''
-        (
-          LOWER(COALESCE(store_name, '')) LIKE ?
-          OR LOWER(COALESCE(note, '')) LIKE ?
-          OR LOWER(COALESCE(raw_ocr_text, '')) LIKE ?
-        )
-        ''',
+      (
+        LOWER(COALESCE(store_name, '')) LIKE ?
+        OR LOWER(COALESCE(note, '')) LIKE ?
+        OR LOWER(COALESCE(raw_ocr_text, '')) LIKE ?
+      )
+      ''',
       );
 
       final like = '%$q%';
@@ -55,11 +55,11 @@ class ReceiptDaoService {
 
     final rows = AppDbService.to.db.select(
       '''
-      SELECT *
-      FROM receipt
-      $whereClause
-      ORDER BY purchase_date $orderBy, id DESC
-      ''',
+    SELECT *
+    FROM receipt
+    $whereClause
+    ORDER BY purchase_date $orderBy, id $orderBy
+    ''',
       args,
     );
 
