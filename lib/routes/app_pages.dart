@@ -5,6 +5,8 @@ import 'package:receipt_keeper/pages/home_receipt/bindings/home_receipt_binding.
 import 'package:receipt_keeper/pages/home_receipt/views/home_receipt_view.dart';
 import 'package:receipt_keeper/pages/manual_receipt/bindings/manual_receipt_binding.dart';
 import 'package:receipt_keeper/pages/manual_receipt/views/manual_receipt_view.dart';
+import 'package:receipt_keeper/pages/premium/bindings/premium_binding.dart';
+import 'package:receipt_keeper/pages/premium/views/premium_view.dart';
 import 'package:receipt_keeper/pages/receipt_detail/bindings/receipt_detail_binding.dart';
 import 'package:receipt_keeper/pages/receipt_detail/views/receipt_detail_view.dart';
 import 'package:receipt_keeper/pages/scan_receipt/bindings/scan_receipt_binding.dart';
@@ -55,6 +57,12 @@ class AppPages {
       name: Routes.WARRANTY,
       page: () => const WarrantyView(),
       binding: WarrantyBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.PREMIUM,
+      page: () => const PremiumView(),
+      binding: PremiumBinding(),
       transition: Transition.rightToLeft,
     ),
   ];

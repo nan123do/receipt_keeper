@@ -102,8 +102,8 @@ class ManualReceiptView extends GetView<ManualReceiptController> {
                                 if (controller.hasDraftImage) ...[
                                   16.gap,
                                   _buildImageSection(),
-                                  16.gap,
                                 ],
+                                16.gap,
                                 if (controller.hasDraftOcrText ||
                                     controller.hasParsedOcrResult) ...[
                                   _buildOcrSummarySection(),

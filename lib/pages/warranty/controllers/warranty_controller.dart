@@ -1,6 +1,8 @@
 // lib/pages/warranty/controllers/warranty_controller.dart
 import 'package:get/get.dart';
 import 'package:receipt_keeper/components/custom_toast.dart';
+import 'package:receipt_keeper/helpers/feature_gate_helper.dart';
+import 'package:receipt_keeper/helpers/premium_gate_prompt_helper.dart';
 import 'package:receipt_keeper/models/warranty.dart';
 import 'package:receipt_keeper/routes/app_pages.dart';
 import 'package:receipt_keeper/services/daos/app_setting_dao_service.dart';
@@ -11,6 +13,7 @@ import 'package:receipt_keeper/utils/app_setting_keys.dart';
 class WarrantyController extends GetxController {
   final WarrantyDaoService _warrantyDaoService = WarrantyDaoService();
   final AppSettingDaoService _appSettingDaoService = AppSettingDaoService();
+  final FeatureGateHelper _featureGateHelper = FeatureGateHelper();
 
   NotificationService? get _notificationService {
     if (!Get.isRegistered<NotificationService>()) {
@@ -132,6 +135,10 @@ class WarrantyController extends GetxController {
   }
 
   String get notificationDescription {
+    if (!_featureGateHelper.canUseWarrantyReminder()) {
+      return 'Pengingat garansi tersedia untuk paket premium.';
+    }
+
     if (!isGlobalNotificationEnabled.value) {
       return 'Semua pengingat garansi sedang dimatikan.';
     }
@@ -235,6 +242,10 @@ class WarrantyController extends GetxController {
   }
 
   String getReminderDescription(Warranty warranty) {
+    if (!_featureGateHelper.canUseWarrantyReminder()) {
+      return 'Upgrade ke Premium untuk menyalakan pengingat item ini.';
+    }
+
     if (!isGlobalNotificationEnabled.value) {
       return 'Aktifkan notifikasi global dulu.';
     }
@@ -252,6 +263,11 @@ class WarrantyController extends GetxController {
 
   Future<void> toggleGlobalNotification(bool value) async {
     if (isUpdatingGlobalNotification.value) {
+      return;
+    }
+
+    if (value && !_featureGateHelper.canUseWarrantyReminder()) {
+      await PremiumGatePromptHelper.showNotificationPremiumOnly();
       return;
     }
 
@@ -309,6 +325,11 @@ class WarrantyController extends GetxController {
     }
 
     if (reminderLoadingIds.contains(id)) {
+      return;
+    }
+
+    if (value && !_featureGateHelper.canUseWarrantyReminder()) {
+      await PremiumGatePromptHelper.showNotificationPremiumOnly();
       return;
     }
 

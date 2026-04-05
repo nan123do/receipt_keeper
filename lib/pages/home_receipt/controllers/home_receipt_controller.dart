@@ -1,12 +1,12 @@
 // lib/pages/home_receipt/controllers/home_receipt_controller.dart
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:receipt_keeper/components/Filter/date_filter.dart';
 import 'package:receipt_keeper/components/custom_toast.dart';
 import 'package:receipt_keeper/helpers/delete_confirm_helper.dart';
+import 'package:receipt_keeper/helpers/feature_gate_helper.dart';
+import 'package:receipt_keeper/helpers/premium_gate_prompt_helper.dart';
 import 'package:receipt_keeper/helpers/report_export_helper.dart';
 import 'package:receipt_keeper/models/receipt.dart';
 import 'package:receipt_keeper/routes/app_pages.dart';
@@ -14,8 +14,8 @@ import 'package:receipt_keeper/services/daos/app_setting_dao_service.dart';
 import 'package:receipt_keeper/services/daos/receipt_dao_service.dart';
 import 'package:receipt_keeper/services/daos/receipt_item_dao_service.dart';
 import 'package:receipt_keeper/services/daos/warranty_dao_service.dart';
+import 'package:receipt_keeper/services/export/receipt_pdf_service.dart';
 import 'package:receipt_keeper/services/notification/notification_service.dart';
-import 'package:receipt_keeper/utils/app_format_helper.dart';
 import 'package:receipt_keeper/utils/app_setting_keys.dart';
 
 class HomeReceiptController extends GetxController {
@@ -23,6 +23,8 @@ class HomeReceiptController extends GetxController {
   final ReceiptDaoService _receiptDaoService = ReceiptDaoService();
   final ReceiptItemDaoService _receiptItemDaoService = ReceiptItemDaoService();
   final WarrantyDaoService _warrantyDaoService = WarrantyDaoService();
+  final ReceiptPdfService _receiptPdfService = ReceiptPdfService();
+  final FeatureGateHelper _featureGateHelper = FeatureGateHelper();
 
   final TextEditingController searchC = TextEditingController();
 
@@ -255,6 +257,11 @@ class HomeReceiptController extends GetxController {
   }
 
   Future<void> openManualReceipt() async {
+    final canCreate = await _ensureCanCreateReceipt();
+    if (!canCreate) {
+      return;
+    }
+
     try {
       final result = await Get.toNamed(Routes.MANUAL_RECEIPT);
 
@@ -320,6 +327,11 @@ class HomeReceiptController extends GetxController {
   }
 
   Future<void> openScanReceipt() async {
+    final canCreate = await _ensureCanCreateReceipt();
+    if (!canCreate) {
+      return;
+    }
+
     try {
       final result = await Get.toNamed(Routes.SCAN_RECEIPT);
 
@@ -347,6 +359,10 @@ class HomeReceiptController extends GetxController {
         'Daftar garansi belum bisa dibuka.',
       );
     }
+  }
+
+  Future<void> openPremiumPage() async {
+    await Get.toNamed(Routes.PREMIUM);
   }
 
   Future<void> archiveReceipt(Receipt receipt) async {
@@ -408,42 +424,81 @@ class HomeReceiptController extends GetxController {
   }
 
   Future<void> quickExportReceipt(Receipt receipt) async {
-    try {
-      final storeName = _getStoreName(receipt);
-      final subject =
-          'Struk $storeName - ${AppFormatHelper.formatDate(receipt.purchaseDate)}';
+    final receiptId = receipt.id;
+    if (receiptId == null || receiptId <= 0) {
+      CustomToast.errorToast(
+        'Data tidak valid',
+        'Struk belum bisa diexport.',
+      );
+      return;
+    }
 
-      final imagePath = receipt.imagePath?.trim();
-      if (imagePath != null && imagePath.isNotEmpty) {
-        final imageFile = File(imagePath);
+    if (!_featureGateHelper.canExportWithoutLimit()) {
+      final shouldContinue =
+          await PremiumGatePromptHelper.confirmFreeExportContinuation();
 
-        if (imageFile.existsSync()) {
-          await ReportExportHelper.shareFile(
-            imageFile,
-            subject: subject,
-          );
-          return;
-        }
+      if (!shouldContinue) {
+        return;
       }
+    }
 
-      final tempDir = await getTemporaryDirectory();
-      final safeStoreName = _sanitizeFileName(storeName);
-      final exportFile = File(
-        '${tempDir.path}/receipt_keeper_${safeStoreName}_${DateTime.now().millisecondsSinceEpoch}.txt',
+    try {
+      final items = _receiptItemDaoService.getByReceiptId(receiptId);
+      final warranties = _warrantyDaoService.getByReceiptId(receiptId);
+      final subject = ReportExportHelper.buildReceiptSubject(receipt);
+
+      final pdfFile = await _receiptPdfService.generateReceiptPdfFile(
+        receipt: receipt,
+        items: items,
+        warranties: warranties,
       );
 
-      await exportFile.writeAsString(_buildReceiptSummary(receipt));
-
-      await ReportExportHelper.shareFile(
-        exportFile,
-        subject: subject,
-      );
+      try {
+        await ReportExportHelper.shareFile(
+          pdfFile,
+          subject: subject,
+        );
+      } catch (e) {
+        CustomToast.errorToast(
+          'Gagal membagikan PDF',
+          'PDF struk sudah dibuat, tetapi belum bisa dibagikan.',
+        );
+      }
     } catch (e) {
       CustomToast.errorToast(
-        'Gagal export',
-        'Struk belum bisa dibagikan.',
+        'Gagal membuat PDF',
+        'PDF struk belum bisa dibuat.',
       );
     }
+  }
+
+  Future<bool> _ensureCanCreateReceipt() async {
+    final currentReceiptCount = _receiptDaoService.countAll();
+
+    if (!_featureGateHelper.canAddReceipt(
+      currentReceiptCount: currentReceiptCount,
+    )) {
+      await PremiumGatePromptHelper.showReceiptLimitReached(
+        freeLimit: _featureGateHelper.freeReceiptLimit,
+      );
+      return false;
+    }
+
+    if (_featureGateHelper.shouldShowReceiptLimitWarning(
+      currentReceiptCount: currentReceiptCount,
+    )) {
+      final remaining = _featureGateHelper.remainingFreeReceipt(
+        currentReceiptCount: currentReceiptCount,
+      );
+
+      CustomToast.successToastWithDur(
+        'Sisa slot struk gratis tinggal $remaining',
+        'Paket gratis bisa menyimpan hingga ${_featureGateHelper.freeReceiptLimit} struk.',
+        2,
+      );
+    }
+
+    return true;
   }
 
   void _loadAdditionalCounts() {
@@ -500,42 +555,6 @@ class HomeReceiptController extends GetxController {
     return left.year == right.year &&
         left.month == right.month &&
         left.day == right.day;
-  }
-
-  String _getStoreName(Receipt receipt) {
-    final value = (receipt.storeName ?? '').trim();
-    if (value.isEmpty) {
-      return 'Tanpa Nama Toko';
-    }
-
-    return value;
-  }
-
-  String _sanitizeFileName(String value) {
-    return value
-        .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
-        .replaceAll(' ', '_')
-        .toLowerCase();
-  }
-
-  String _buildReceiptSummary(Receipt receipt) {
-    final storeName = _getStoreName(receipt);
-    final itemCount = getItemCount(receipt.id);
-    final warrantyCount = getWarrantyCount(receipt.id);
-
-    return '''
-Receipt Keeper
-====================
-
-Toko        : $storeName
-Tanggal     : ${AppFormatHelper.formatDateTime(receipt.purchaseDate)}
-Total       : ${AppFormatHelper.formatRupiah(receipt.totalAmount)}
-Jumlah Item : $itemCount
-Garansi     : $warrantyCount
-Catatan     : ${(receipt.note ?? '-').trim().isEmpty ? '-' : receipt.note!.trim()}
-
-Dokumen ini dibagikan dari Receipt Keeper.
-''';
   }
 }
 

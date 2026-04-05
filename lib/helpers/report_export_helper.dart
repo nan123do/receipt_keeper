@@ -1,10 +1,11 @@
 // lib/helpers/report_export_helper.dart
-
 import 'dart:io';
 
 import 'package:intl/intl.dart';
 import 'package:receipt_keeper/components/Filter/date_filter.dart';
 import 'package:receipt_keeper/helpers/number_helper.dart';
+import 'package:receipt_keeper/models/receipt.dart';
+import 'package:receipt_keeper/utils/app_format_helper.dart';
 import 'package:share_plus/share_plus.dart';
 
 class ReportExportHelper {
@@ -24,6 +25,18 @@ class ReportExportHelper {
       template: 'Rp 0',
       maxFraction: 0,
     );
+  }
+
+  static String buildReceiptSubject(
+    Receipt receipt, {
+    String fallbackStoreName = 'Tanpa Nama Toko',
+  }) {
+    final rawStoreName = receipt.storeName?.trim();
+    final storeName = (rawStoreName == null || rawStoreName.isEmpty)
+        ? fallbackStoreName
+        : rawStoreName;
+
+    return 'Struk $storeName - ${AppFormatHelper.formatDate(receipt.purchaseDate)}';
   }
 
   static Future<void> shareFile(

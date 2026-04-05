@@ -4,7 +4,9 @@ import 'package:get/get.dart';
 import 'package:receipt_keeper/components/custom_toast.dart';
 import 'package:receipt_keeper/helpers/datehelper.dart';
 import 'package:receipt_keeper/helpers/delete_confirm_helper.dart';
+import 'package:receipt_keeper/helpers/feature_gate_helper.dart';
 import 'package:receipt_keeper/helpers/number_helper.dart';
+import 'package:receipt_keeper/helpers/premium_gate_prompt_helper.dart';
 import 'package:receipt_keeper/helpers/receipt_validation_helper.dart';
 import 'package:receipt_keeper/models/ocr_parsed_receipt_model.dart';
 import 'package:receipt_keeper/models/receipt.dart';
@@ -16,6 +18,7 @@ import 'package:receipt_keeper/services/daos/receipt_dao_service.dart';
 import 'package:receipt_keeper/services/daos/receipt_item_dao_service.dart';
 import 'package:receipt_keeper/services/daos/warranty_dao_service.dart';
 import 'package:receipt_keeper/services/ocr/receipt_ocr_parser_service.dart';
+import 'package:receipt_keeper/services/receipt/receipt_image_storage_service.dart';
 import 'package:receipt_keeper/utils/app_format_helper.dart';
 
 class ManualReceiptItemDraft {
@@ -73,6 +76,9 @@ class ManualReceiptController extends GetxController {
   final WarrantyDaoService _warrantyDaoService = WarrantyDaoService();
   final ReceiptOcrParserService _receiptOcrParserService =
       const ReceiptOcrParserService();
+  final FeatureGateHelper _featureGateHelper = FeatureGateHelper();
+  final ReceiptImageStorageService _receiptImageStorageService =
+      ReceiptImageStorageService();
 
   final TextEditingController purchaseDateC = TextEditingController();
   final TextEditingController totalAmountC = TextEditingController();
@@ -610,6 +616,26 @@ class ManualReceiptController extends GetxController {
     totalAmountC.text = _formatEditableNumber(itemsTotal);
   }
 
+  Future<bool> _ensureCanSaveNewReceipt() async {
+    if (isEditMode.value) {
+      return true;
+    }
+
+    final currentReceiptCount = _receiptDaoService.countAll();
+
+    if (_featureGateHelper.canAddReceipt(
+      currentReceiptCount: currentReceiptCount,
+    )) {
+      return true;
+    }
+
+    await PremiumGatePromptHelper.showReceiptLimitReached(
+      freeLimit: _featureGateHelper.freeReceiptLimit,
+    );
+
+    return false;
+  }
+
   String formatDraftItemQty(double value) {
     final isWholeNumber = value == value.truncateToDouble();
     if (isWholeNumber) {
@@ -701,8 +727,7 @@ class ManualReceiptController extends GetxController {
       return;
     }
 
-    final receipt = draftReceipt;
-    final validationMessage = ReceiptValidationHelper.validate(receipt);
+    final validationMessage = ReceiptValidationHelper.validate(draftReceipt);
 
     if (validationMessage != null) {
       CustomToast.errorToast(
@@ -712,11 +737,28 @@ class ManualReceiptController extends GetxController {
       return;
     }
 
+    final canSaveNewReceipt = await _ensureCanSaveNewReceipt();
+    if (!canSaveNewReceipt) {
+      return;
+    }
+
     try {
       isLoading.value = true;
 
+      final persistedImagePath =
+          await _receiptImageStorageService.persistImagePath(
+                normalizedDraftImagePath,
+              ) ??
+              normalizedDraftImagePath;
+
+      final receipt = draftReceipt.copyWith(
+        imagePath: persistedImagePath,
+      );
+
       final savedReceiptId = _receiptDaoService.insert(receipt);
       _saveDraftChildren(savedReceiptId);
+
+      draftImagePath.value = persistedImagePath;
 
       await _closeAfterSave(
         title: saveSuccessTitle,
@@ -760,8 +802,7 @@ class ManualReceiptController extends GetxController {
       return;
     }
 
-    final receipt = draftReceipt;
-    final validationMessage = ReceiptValidationHelper.validate(receipt);
+    final validationMessage = ReceiptValidationHelper.validate(draftReceipt);
 
     if (validationMessage != null) {
       CustomToast.errorToast(
@@ -774,12 +815,32 @@ class ManualReceiptController extends GetxController {
     try {
       isLoading.value = true;
 
-      _receiptDaoService.update(
-        receipt.copyWith(id: id),
+      final previousImagePath = loadedReceipt?.imagePath?.trim();
+      final persistedImagePath =
+          await _receiptImageStorageService.persistImagePath(
+                normalizedDraftImagePath,
+              ) ??
+              normalizedDraftImagePath ??
+              previousImagePath;
+
+      final receipt = draftReceipt.copyWith(
+        id: id,
+        imagePath: persistedImagePath,
       );
+
+      _receiptDaoService.update(receipt);
       _warrantyDaoService.deleteByReceiptId(id);
       _receiptItemDaoService.deleteByReceiptId(id);
       _saveDraftChildren(id);
+
+      if (previousImagePath != null &&
+          previousImagePath.isNotEmpty &&
+          previousImagePath != persistedImagePath) {
+        await _receiptImageStorageService.deleteManagedImage(previousImagePath);
+      }
+
+      draftImagePath.value = persistedImagePath;
+      loadedReceipt = receipt;
 
       await _closeAfterSave(
         title: updateSuccessTitle,

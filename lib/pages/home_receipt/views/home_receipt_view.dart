@@ -54,6 +54,33 @@ class HomeReceiptView extends GetView<HomeReceiptController> {
             ),
           ],
         ),
+        actions: [
+          Padding(
+            padding: EdgeInsets.only(
+              right: CareraTheme.paddingScaffold.right,
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: controller.openPremiumPage,
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.22),
+                  ),
+                ),
+                child: Icon(
+                  Icons.workspace_premium_outlined,
+                  color: CareraTheme.white,
+                  size: 22,
+                ),
+              ),
+            ),
+          ),
+        ],
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(

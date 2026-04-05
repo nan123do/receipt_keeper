@@ -11,6 +11,7 @@ abstract class Routes {
   static const SCAN_RECEIPT = _Paths.SCAN_RECEIPT;
   static const RECEIPT_DETAIL = _Paths.RECEIPT_DETAIL;
   static const WARRANTY = _Paths.WARRANTY;
+  static const PREMIUM = _Paths.PREMIUM;
   static const SETTINGS = _Paths.SETTINGS;
 }
 
@@ -21,5 +22,6 @@ abstract class _Paths {
   static const SCAN_RECEIPT = '/scan-receipt';
   static const RECEIPT_DETAIL = '/receipt-detail';
   static const WARRANTY = '/warranty';
+  static const PREMIUM = '/premium';
   static const SETTINGS = '/settings';
 }

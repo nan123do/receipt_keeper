@@ -3,13 +3,25 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:receipt_keeper/components/custom_toast.dart';
+import 'package:receipt_keeper/helpers/feature_gate_helper.dart';
+import 'package:receipt_keeper/helpers/premium_gate_prompt_helper.dart';
 import 'package:receipt_keeper/models/ocr_result_model.dart';
 import 'package:receipt_keeper/routes/app_pages.dart';
 import 'package:receipt_keeper/services/ocr/ocr_service.dart';
+import 'package:receipt_keeper/services/premium/premium_service.dart';
 
 class ScanReceiptController extends GetxController {
   final ImagePicker _imagePicker = ImagePicker();
   final OcrService _ocrService = OcrService();
+  final FeatureGateHelper _featureGateHelper = FeatureGateHelper();
+
+  PremiumService? get _premiumService {
+    if (!Get.isRegistered<PremiumService>()) {
+      return null;
+    }
+
+    return Get.find<PremiumService>();
+  }
 
   final RxBool isLoading = false.obs;
   final RxBool isProcessingOcr = false.obs;
@@ -209,11 +221,34 @@ class ScanReceiptController extends GetxController {
       return;
     }
 
+    if (!_featureGateHelper.canUseOcr()) {
+      ocrErrorMessage.value =
+          'Kuota OCR gratis bulan ini sudah habis. Upgrade ke Premium agar scan otomatis tetap bisa dipakai.';
+
+      await PremiumGatePromptHelper.showOcrLimitReached(
+        freeLimit: _featureGateHelper.freeOcrLimit,
+      );
+      return;
+    }
+
+    final remainingQuota = _featureGateHelper.remainingFreeOcr();
+    if (!_featureGateHelper.isPremium &&
+        remainingQuota > 0 &&
+        remainingQuota <= FeatureGateHelper.defaultWarningThreshold) {
+      CustomToast.successToastWithDur(
+        'Sisa OCR gratis bulan ini tinggal $remainingQuota',
+        'Paket gratis memberi OCR otomatis hingga ${_featureGateHelper.freeOcrLimit} kali per bulan.',
+        2,
+      );
+    }
+
     try {
       isProcessingOcr.value = true;
       ocrErrorMessage.value = null;
 
       final result = await _ocrService.extractTextFromImage(imagePath);
+      _premiumService?.consumeOcrQuota();
+
       ocrResult.value = result;
 
       if (result.hasText) {

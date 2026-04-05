@@ -1,10 +1,10 @@
 // lib/pages/receipt_detail/controllers/receipt_detail_controller.dart
-import 'dart:io';
 
 import 'package:get/get.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:receipt_keeper/components/custom_toast.dart';
 import 'package:receipt_keeper/helpers/delete_confirm_helper.dart';
+import 'package:receipt_keeper/helpers/feature_gate_helper.dart';
+import 'package:receipt_keeper/helpers/premium_gate_prompt_helper.dart';
 import 'package:receipt_keeper/helpers/report_export_helper.dart';
 import 'package:receipt_keeper/models/receipt.dart';
 import 'package:receipt_keeper/models/receipt_item.dart';
@@ -14,6 +14,7 @@ import 'package:receipt_keeper/services/daos/app_setting_dao_service.dart';
 import 'package:receipt_keeper/services/daos/receipt_dao_service.dart';
 import 'package:receipt_keeper/services/daos/receipt_item_dao_service.dart';
 import 'package:receipt_keeper/services/daos/warranty_dao_service.dart';
+import 'package:receipt_keeper/services/export/receipt_pdf_service.dart';
 import 'package:receipt_keeper/services/notification/notification_service.dart';
 import 'package:receipt_keeper/utils/app_format_helper.dart';
 import 'package:receipt_keeper/utils/app_setting_keys.dart';
@@ -23,6 +24,8 @@ class ReceiptDetailController extends GetxController {
   final ReceiptItemDaoService _receiptItemDaoService = ReceiptItemDaoService();
   final WarrantyDaoService _warrantyDaoService = WarrantyDaoService();
   final AppSettingDaoService _appSettingDaoService = AppSettingDaoService();
+  final ReceiptPdfService _receiptPdfService = ReceiptPdfService();
+  final FeatureGateHelper _featureGateHelper = FeatureGateHelper();
 
   final RxBool isLoading = false.obs;
   final RxBool isItemActionLoading = false.obs;
@@ -417,6 +420,10 @@ class ReceiptDetailController extends GetxController {
   }
 
   String getWarrantyReminderDescription(Warranty warranty) {
+    if (!_featureGateHelper.canUseWarrantyReminder()) {
+      return 'Upgrade ke Premium untuk menyalakan pengingat item ini.';
+    }
+
     if (!isGlobalNotificationEnabled) {
       return 'Aktifkan notifikasi global dulu.';
     }
@@ -504,6 +511,11 @@ class ReceiptDetailController extends GetxController {
     }
 
     if (reminderLoadingIds.contains(id)) {
+      return;
+    }
+
+    if (value && !_featureGateHelper.canUseWarrantyReminder()) {
+      await PremiumGatePromptHelper.showNotificationPremiumOnly();
       return;
     }
 
@@ -803,42 +815,41 @@ class ReceiptDetailController extends GetxController {
       return;
     }
 
+    if (!_featureGateHelper.canExportWithoutLimit()) {
+      final shouldContinue =
+          await PremiumGatePromptHelper.confirmFreeExportContinuation();
+
+      if (!shouldContinue) {
+        return;
+      }
+    }
+
     try {
       isReceiptActionLoading.value = true;
 
-      final storeName = normalizedStoreName ?? 'tanpa_toko';
-      final subject =
-          'Struk $storeName - ${AppFormatHelper.formatDate(currentReceipt.purchaseDate)}';
+      final subject = ReportExportHelper.buildReceiptSubject(currentReceipt);
 
-      final rawImagePath = currentReceipt.imagePath?.trim();
-      if (rawImagePath != null && rawImagePath.isNotEmpty) {
-        final imageFile = File(rawImagePath);
+      final pdfFile = await _receiptPdfService.generateReceiptPdfFile(
+        receipt: currentReceipt,
+        items: itemList,
+        warranties: warrantyList,
+      );
 
-        if (imageFile.existsSync()) {
-          await ReportExportHelper.shareFile(
-            imageFile,
-            subject: subject,
-          );
-          return;
-        }
+      try {
+        await ReportExportHelper.shareFile(
+          pdfFile,
+          subject: subject,
+        );
+      } catch (e) {
+        CustomToast.errorToast(
+          'Gagal membagikan PDF',
+          'PDF struk sudah dibuat, tetapi belum bisa dibagikan.',
+        );
       }
-
-      final tempDir = await getTemporaryDirectory();
-      final safeStoreName = _sanitizeFileName(storeName);
-      final exportFile = File(
-        '${tempDir.path}/receipt_keeper_${safeStoreName}_${DateTime.now().millisecondsSinceEpoch}.txt',
-      );
-
-      await exportFile.writeAsString(_buildReceiptSummary(currentReceipt));
-
-      await ReportExportHelper.shareFile(
-        exportFile,
-        subject: subject,
-      );
     } catch (e) {
       CustomToast.errorToast(
-        'Gagal export',
-        'Struk belum bisa dibagikan.',
+        'Gagal membuat PDF',
+        'PDF struk belum bisa dibuat.',
       );
     } finally {
       isReceiptActionLoading.value = false;
@@ -993,66 +1004,6 @@ class ReceiptDetailController extends GetxController {
       value,
       maxFraction: value == value.truncateToDouble() ? 0 : 2,
     );
-  }
-
-  String _buildReceiptSummary(Receipt receipt) {
-    final buffer = StringBuffer();
-
-    buffer.writeln('RECEIPT KEEPER');
-    buffer.writeln('Ringkasan Struk');
-    buffer.writeln('');
-    buffer.writeln('Toko: $storeNameLabel');
-    buffer.writeln(
-      'Tanggal: ${AppFormatHelper.formatDateTime(receipt.purchaseDate)}',
-    );
-    buffer.writeln(
-      'Total: ${AppFormatHelper.formatRupiah(receipt.totalAmount)}',
-    );
-    buffer.writeln('Jumlah Item: $itemCount');
-    buffer.writeln('Jumlah Garansi: $warrantyCount');
-
-    final note = receipt.note?.trim();
-    if (note != null && note.isNotEmpty) {
-      buffer.writeln('Catatan: $note');
-    }
-
-    if (itemList.isNotEmpty) {
-      buffer.writeln('');
-      buffer.writeln('Daftar Item:');
-
-      for (final item in itemList) {
-        buffer.writeln(
-          '- ${item.itemName} | ${formatItemQty(item.qty)} x ${formatItemPrice(item.unitPrice)} = ${AppFormatHelper.formatRupiah(item.subtotal)}',
-        );
-
-        final itemNote = item.note?.trim();
-        if (itemNote != null && itemNote.isNotEmpty) {
-          buffer.writeln('  Catatan: $itemNote');
-        }
-      }
-    }
-
-    if (warrantyList.isNotEmpty) {
-      buffer.writeln('');
-      buffer.writeln('Daftar Garansi:');
-
-      for (final warranty in warrantyList) {
-        buffer.writeln(
-          '- ${warranty.productName} | ${warranty.warrantyMonths} bulan | Habis ${AppFormatHelper.formatDate(warranty.expiryDate)}',
-        );
-      }
-    }
-
-    return buffer.toString();
-  }
-
-  String _sanitizeFileName(String value) {
-    return value
-        .trim()
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
-        .replaceAll(RegExp(r'_+'), '_')
-        .replaceAll(RegExp(r'^_|_$'), '');
   }
 
   String? _normalizeNullable(String? value) {

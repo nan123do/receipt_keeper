@@ -177,6 +177,60 @@ class AppSettingDaoService {
       '7',
       description: 'Pengingat garansi sebelum habis dalam hitungan hari',
     );
+
+    _setDefaultIfMissing(
+      AppSettingKeys.isPremium,
+      '0',
+      description: 'Status premium aktif',
+    );
+
+    _setDefaultIfMissing(
+      AppSettingKeys.premiumProductId,
+      '',
+      description: 'Product id premium aktif',
+    );
+
+    _setDefaultIfMissing(
+      AppSettingKeys.premiumPurchaseId,
+      '',
+      description: 'ID transaksi pembelian premium',
+    );
+
+    _setDefaultIfMissing(
+      AppSettingKeys.premiumPurchasedAt,
+      '',
+      description: 'Waktu aktivasi premium',
+    );
+
+    _setDefaultIfMissing(
+      AppSettingKeys.premiumLastRestoreAt,
+      '',
+      description: 'Waktu restore premium terakhir',
+    );
+
+    _setDefaultIfMissing(
+      AppSettingKeys.freeReceiptLimit,
+      '20',
+      description: 'Batas gratis jumlah struk',
+    );
+
+    _setDefaultIfMissing(
+      AppSettingKeys.freeOcrLimit,
+      '10',
+      description: 'Batas gratis jumlah OCR per bulan',
+    );
+
+    _setDefaultIfMissing(
+      AppSettingKeys.freeOcrUsedCount,
+      '0',
+      description: 'Jumlah OCR gratis yang sudah dipakai di bulan aktif',
+    );
+
+    _setDefaultIfMissing(
+      AppSettingKeys.freeOcrUsedPeriod,
+      '',
+      description: 'Periode pemakaian OCR gratis',
+    );
   }
 
   void _setDefaultIfMissing(
