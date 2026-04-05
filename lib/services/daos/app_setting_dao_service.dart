@@ -1,5 +1,4 @@
 // lib/services/daos/app_setting_dao_service.dart
-
 import 'package:receipt_keeper/services/db/app_db_service.dart';
 import 'package:receipt_keeper/utils/app_setting_keys.dart';
 
@@ -176,6 +175,18 @@ class AppSettingDaoService {
       AppSettingKeys.warrantyReminderDays,
       '7',
       description: 'Pengingat garansi sebelum habis dalam hitungan hari',
+    );
+
+    _setDefaultIfMissing(
+      AppSettingKeys.scanAutoProcessOcr,
+      '1',
+      description: 'OCR otomatis setelah gambar struk dipilih',
+    );
+
+    _setDefaultIfMissing(
+      AppSettingKeys.scanPreferredSource,
+      'camera',
+      description: 'Sumber scan yang lebih sering dipakai pengguna',
     );
 
     _setDefaultIfMissing(

@@ -1297,7 +1297,10 @@ class ReceiptDetailView extends GetView<ReceiptDetailController> {
       text: AppFormatHelper.formatDate(controller.receipt?.purchaseDate),
     );
     final warrantyMonthsC = TextEditingController(
-      text: _formatIntegerInput(initialWarranty?.warrantyMonths ?? 12),
+      text: _formatIntegerInput(
+        initialWarranty?.warrantyMonths ??
+            controller.defaultWarrantyMonthsSetting,
+      ),
     );
 
     final result = await CustomBottomSheet.showDynamic<int>(

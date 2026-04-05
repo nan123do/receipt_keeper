@@ -129,6 +129,19 @@ class ReceiptDetailController extends GetxController {
     return isItemActionLoading.value ? 'Menyimpan...' : 'Tambah Item';
   }
 
+  int get defaultWarrantyMonthsSetting {
+    final value = _appSettingDaoService.getIntValue(
+      AppSettingKeys.defaultWarrantyMonths,
+      defaultValue: 12,
+    );
+
+    if (value <= 0) {
+      return 12;
+    }
+
+    return value;
+  }
+
   @override
   void onInit() {
     super.onInit();

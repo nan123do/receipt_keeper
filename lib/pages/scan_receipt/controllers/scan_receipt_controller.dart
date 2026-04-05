@@ -7,13 +7,17 @@ import 'package:receipt_keeper/helpers/feature_gate_helper.dart';
 import 'package:receipt_keeper/helpers/premium_gate_prompt_helper.dart';
 import 'package:receipt_keeper/models/ocr_result_model.dart';
 import 'package:receipt_keeper/routes/app_pages.dart';
+import 'package:receipt_keeper/services/daos/app_setting_dao_service.dart';
 import 'package:receipt_keeper/services/ocr/ocr_service.dart';
 import 'package:receipt_keeper/services/premium/premium_service.dart';
+import 'package:receipt_keeper/utils/app_setting_keys.dart';
 
 class ScanReceiptController extends GetxController {
   final ImagePicker _imagePicker = ImagePicker();
   final OcrService _ocrService = OcrService();
   final FeatureGateHelper _featureGateHelper = FeatureGateHelper();
+  final AppSettingDaoService _appSettingDaoService = AppSettingDaoService();
+  final RxBool autoProcessOcr = true.obs;
 
   PremiumService? get _premiumService {
     if (!Get.isRegistered<PremiumService>()) {
@@ -138,6 +142,26 @@ class ScanReceiptController extends GetxController {
     return 'OCR belum maksimal, tapi Anda tetap bisa isi data secara manual.';
   }
 
+  @override
+  void onInit() {
+    super.onInit();
+    _loadScanPreferences();
+  }
+
+  void _loadScanPreferences() {
+    autoProcessOcr.value = _appSettingDaoService.getBoolValue(
+      AppSettingKeys.scanAutoProcessOcr,
+      defaultValue: true,
+    );
+
+    final preferredSource = _appSettingDaoService.getValue(
+      AppSettingKeys.scanPreferredSource,
+      defaultValue: 'camera',
+    );
+
+    selectedSource.value = preferredSource == 'gallery' ? 'gallery' : 'camera';
+  }
+
   Future<void> retryOcr() async {
     if (!hasSelectedImage || isProcessingOcr.value) {
       return;
@@ -185,6 +209,12 @@ class ScanReceiptController extends GetxController {
       selectedSource.value =
           source == ImageSource.camera ? 'camera' : 'gallery';
 
+      _appSettingDaoService.setValue(
+        AppSettingKeys.scanPreferredSource,
+        selectedSource.value ?? 'camera',
+        description: 'Sumber scan yang lebih sering dipakai pengguna',
+      );
+
       CustomToast.successToast(
         'Gambar siap',
         source == ImageSource.camera
@@ -210,7 +240,7 @@ class ScanReceiptController extends GetxController {
       isLoading.value = false;
     }
 
-    if (hasSelectedImage) {
+    if (hasSelectedImage && autoProcessOcr.value) {
       await processOcr();
     }
   }

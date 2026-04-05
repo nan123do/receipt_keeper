@@ -12,6 +12,8 @@ import 'package:receipt_keeper/services/db/app_db_service.dart';
 import 'package:receipt_keeper/services/notification/notification_service.dart';
 import 'package:receipt_keeper/services/premium/premium_service.dart';
 import 'package:receipt_keeper/services/seeds/demo_receipt_seed_service.dart';
+import 'package:receipt_keeper/utils/app_setting_keys.dart';
+import 'package:receipt_keeper/utils/global_data.dart';
 import 'package:receipt_keeper/utils/theme.dart';
 
 Future<void> main() async {
@@ -28,6 +30,11 @@ Future<void> main() async {
 
   final appSettingDaoService = AppSettingDaoService();
   appSettingDaoService.ensureDefaultSettings();
+
+  GlobalData.BiometrikSaatBukaAplikasi = appSettingDaoService.getBoolValue(
+    AppSettingKeys.biometricOnAppOpen,
+    defaultValue: false,
+  );
 
   await Get.putAsync<NotificationService>(
     () => NotificationService().init(),

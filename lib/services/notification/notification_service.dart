@@ -256,9 +256,9 @@ class NotificationService extends GetxService {
       return;
     }
 
-    _appSettingDaoService.delete(_buildReminderSentKey(warrantyId, 7));
-    _appSettingDaoService.delete(_buildReminderSentKey(warrantyId, 3));
-    _appSettingDaoService.delete(_buildReminderSentKey(warrantyId, 0));
+    for (final stage in _knownReminderStages()) {
+      _appSettingDaoService.delete(_buildReminderSentKey(warrantyId, stage));
+    }
   }
 
   Future<void> cancelWarrantyNotifications(Warranty warranty) async {
@@ -267,9 +267,40 @@ class NotificationService extends GetxService {
       return;
     }
 
-    await cancel(_buildNotificationId(warrantyId, 7));
-    await cancel(_buildNotificationId(warrantyId, 3));
-    await cancel(_buildNotificationId(warrantyId, 0));
+    for (final stage in _knownReminderStages()) {
+      await cancel(_buildNotificationId(warrantyId, stage));
+    }
+  }
+
+  int? _resolveReminderStage(int daysLeft) {
+    final configuredReminderDays = _configuredReminderDays();
+
+    if (daysLeft <= 0) {
+      return 0;
+    }
+
+    if (daysLeft <= 3) {
+      return 3;
+    }
+
+    if (daysLeft <= configuredReminderDays) {
+      return configuredReminderDays;
+    }
+
+    return null;
+  }
+
+  int _configuredReminderDays() {
+    final value = _appSettingDaoService.getIntValue(
+      AppSettingKeys.warrantyReminderDays,
+      defaultValue: 7,
+    );
+
+    if (value <= 3) {
+      return 7;
+    }
+
+    return value;
   }
 
   Future<bool> _canProcessWarrantyReminder() async {
@@ -327,22 +358,6 @@ class NotificationService extends GetxService {
       description:
           'Riwayat kirim pengingat garansi tahap $reminderStage hari untuk warranty $warrantyId',
     );
-  }
-
-  int? _resolveReminderStage(int daysLeft) {
-    if (daysLeft <= 0) {
-      return 0;
-    }
-
-    if (daysLeft <= 3) {
-      return 3;
-    }
-
-    if (daysLeft <= 7) {
-      return 7;
-    }
-
-    return null;
   }
 
   bool _hasStageBeenSent(int warrantyId, int reminderStage) {
@@ -414,6 +429,10 @@ class NotificationService extends GetxService {
 
   Future<void> cancelAll() async {
     await plugin.cancelAll();
+  }
+
+  List<int> _knownReminderStages() {
+    return const [0, 3, 5, 7, 14, 30];
   }
 
   void _onDidReceiveNotificationResponse(

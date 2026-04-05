@@ -365,6 +365,10 @@ class HomeReceiptController extends GetxController {
     await Get.toNamed(Routes.PREMIUM);
   }
 
+  Future<void> openSettingsPage() async {
+    await Get.toNamed(Routes.SETTINGS);
+  }
+
   Future<void> archiveReceipt(Receipt receipt) async {
     final receiptId = receipt.id;
     if (receiptId == null) {
