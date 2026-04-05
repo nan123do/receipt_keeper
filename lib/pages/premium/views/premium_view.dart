@@ -497,8 +497,8 @@ class PremiumView extends GetView<PremiumController> {
                   values: [
                     'Simpan hingga ${controller.freeReceiptLimit} struk',
                     'OCR otomatis hingga ${controller.freeOcrLimit} kali per bulan',
-                    'Pengingat garansi tersedia di Premium',
-                    'Export PDF tetap tersedia',
+                    'Pengingat garansi belum tersedia',
+                    'Export PDF tetap bisa digunakan',
                   ],
                   accentColor: CareraTheme.gray60,
                   backgroundColor: CareraTheme.gray5,
@@ -509,10 +509,10 @@ class PremiumView extends GetView<PremiumController> {
                 child: _buildPlanItem(
                   title: 'Premium',
                   values: [
-                    'Tambah struk lebih leluasa',
-                    'OCR lebih longgar',
-                    'Pengingat garansi aktif',
-                    'Export PDF lebih praktis',
+                    'Simpan struk tanpa batas',
+                    'OCR otomatis tanpa batas per bulan',
+                    'Aktifkan pengingat garansi per produk',
+                    'Export PDF langsung tanpa batas',
                   ],
                   accentColor: CareraTheme.mainColor,
                   backgroundColor: CareraTheme.turquoise20,

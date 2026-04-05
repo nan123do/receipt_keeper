@@ -39,15 +39,15 @@ class ReceiptPdfService {
               pw.SizedBox(height: 16),
               _buildNoteSection(note),
             ],
+            if (receiptImage != null) ...[
+              pw.SizedBox(height: 16),
+              _buildImageSection(receiptImage),
+            ],
             pw.SizedBox(height: 16),
             _buildItemSection(items),
             if (warranties.isNotEmpty) ...[
               pw.SizedBox(height: 16),
               _buildWarrantySection(warranties),
-            ],
-            if (receiptImage != null) ...[
-              pw.SizedBox(height: 16),
-              _buildImageSection(receiptImage),
             ],
             pw.SizedBox(height: 20),
             _buildLegalNote(),
@@ -293,32 +293,32 @@ class ReceiptPdfService {
   }
 
   pw.Widget _buildImageSection(pw.MemoryImage image) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        _buildSectionTitle('Foto Struk'),
-        pw.SizedBox(height: 8),
-        pw.Container(
-          width: double.infinity,
-          padding: const pw.EdgeInsets.all(12),
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(
-              color: PdfColors.grey400,
-              width: 1,
-            ),
-            borderRadius: const pw.BorderRadius.all(
-              pw.Radius.circular(10),
-            ),
-          ),
-          child: pw.Center(
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(
+          color: PdfColors.grey400,
+          width: 1,
+        ),
+        borderRadius: const pw.BorderRadius.all(
+          pw.Radius.circular(10),
+        ),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle('Foto Struk'),
+          pw.SizedBox(height: 8),
+          pw.Center(
             child: pw.Image(
               image,
               fit: pw.BoxFit.contain,
-              height: 280,
+              height: 220,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
