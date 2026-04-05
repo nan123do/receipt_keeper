@@ -220,6 +220,18 @@ class AppSettingDaoService {
     );
 
     _setDefaultIfMissing(
+      AppSettingKeys.backupLocalLastAt,
+      '',
+      description: 'Waktu backup lokal terakhir',
+    );
+
+    _setDefaultIfMissing(
+      AppSettingKeys.backupLocalLastFileName,
+      '',
+      description: 'Nama file backup lokal terakhir',
+    );
+
+    _setDefaultIfMissing(
       AppSettingKeys.freeReceiptLimit,
       '20',
       description: 'Batas gratis jumlah struk',

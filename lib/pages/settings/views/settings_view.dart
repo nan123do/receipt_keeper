@@ -111,6 +111,70 @@ class SettingsView extends GetView<SettingsController> {
                       ),
                       16.gap,
                       _buildPreferenceCard(
+                        title: 'Backup & Restore',
+                        children: [
+                          _buildValueTile(
+                            icon: Icons.backup_outlined,
+                            title: 'Backup lokal',
+                            subtitle:
+                                'Simpan salinan database ke penyimpanan lokal aplikasi.',
+                            value: controller.isBackupProcessing.value
+                                ? 'Memproses...'
+                                : 'Buat backup',
+                            onTap: controller.isBackupProcessing.value
+                                ? null
+                                : controller.createLocalBackup,
+                          ),
+                          _buildDivider(),
+                          _buildValueTile(
+                            icon: Icons.restore_outlined,
+                            title: 'Restore data',
+                            subtitle:
+                                'Pulihkan database dari backup lokal terbaru. Data saat ini akan ditimpa.',
+                            value: controller.isBackupProcessing.value
+                                ? 'Memproses...'
+                                : 'Restore',
+                            onTap: controller.isBackupProcessing.value ||
+                                    !controller.hasLocalBackup
+                                ? null
+                                : controller.restoreLatestLocalBackup,
+                          ),
+                          _buildDivider(),
+                          _buildValueTile(
+                            icon: Icons.history_outlined,
+                            title: 'Backup terakhir',
+                            subtitle:
+                                'Waktu pembuatan backup lokal yang terakhir berhasil disimpan.',
+                            value: controller.localBackupLastAtLabel,
+                          ),
+                          _buildDivider(),
+                          _buildValueTile(
+                            icon: Icons.description_outlined,
+                            title: 'File backup terakhir',
+                            subtitle:
+                                'Nama file backup lokal terakhir untuk memudahkan pengecekan.',
+                            value: controller.localBackupLastFileNameLabel,
+                            isValueBelowSubtitle: true,
+                          ),
+                          _buildDivider(),
+                          _buildValueTile(
+                            icon: Icons.cloud_outlined,
+                            title: 'Backup cloud premium',
+                            subtitle:
+                                'Placeholder premium. Backup cloud belum tersedia pada versi ini.',
+                            value: controller.cloudBackupLabel,
+                            onTap: controller.showCloudBackupPlaceholder,
+                          ),
+                          14.gap,
+                          _buildWarningBox(
+                            title: 'Perhatian',
+                            message:
+                                'Restore akan menimpa data saat ini. Sebaiknya buat backup lokal baru dulu sebelum memulihkan data lama.',
+                          ),
+                        ],
+                      ),
+                      16.gap,
+                      _buildPreferenceCard(
                         title: 'Aplikasi',
                         children: [
                           _buildValueTile(
@@ -282,6 +346,7 @@ class SettingsView extends GetView<SettingsController> {
     required String subtitle,
     required String value,
     VoidCallback? onTap,
+    bool isValueBelowSubtitle = false,
   }) {
     final content = Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -294,12 +359,41 @@ class SettingsView extends GetView<SettingsController> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: AxataTextStyle.textBase.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: CareraTheme.black,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: AxataTextStyle.textBase.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: CareraTheme.black,
+                        ),
+                      ),
+                    ),
+                    if (!isValueBelowSubtitle) ...[
+                      12.wGap,
+                      Text(
+                        value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: AxataTextStyle.textSm.copyWith(
+                          color: CareraTheme.gray70,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                    if (onTap != null) ...[
+                      6.wGap,
+                      const Icon(
+                        Icons.chevron_right,
+                        color: CareraTheme.gray50,
+                        size: 20,
+                      ),
+                    ],
+                  ],
                 ),
                 4.gap,
                 Text(
@@ -309,29 +403,31 @@ class SettingsView extends GetView<SettingsController> {
                     height: 1.4,
                   ),
                 ),
+                if (isValueBelowSubtitle) ...[
+                  8.gap,
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: CareraTheme.gray5,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: CareraTheme.gray20),
+                    ),
+                    child: Text(
+                      value,
+                      style: AxataTextStyle.textSm.copyWith(
+                        color: CareraTheme.gray70,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
-          ),
-          12.wGap,
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                value,
-                style: AxataTextStyle.textSm.copyWith(
-                  color: CareraTheme.gray70,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (onTap != null) ...[
-                6.wGap,
-                const Icon(
-                  Icons.chevron_right,
-                  color: CareraTheme.gray50,
-                  size: 20,
-                ),
-              ],
-            ],
           ),
         ],
       ),
@@ -371,6 +467,54 @@ class SettingsView extends GetView<SettingsController> {
         height: 1,
         thickness: 1,
         color: CareraTheme.gray20,
+      ),
+    );
+  }
+
+  Widget _buildWarningBox({
+    required String title,
+    required String message,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: CareraTheme.turquoise20,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: CareraTheme.gray20),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline,
+            color: CareraTheme.mainColor,
+            size: 20,
+          ),
+          10.wGap,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AxataTextStyle.textSm.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: CareraTheme.black,
+                  ),
+                ),
+                4.gap,
+                Text(
+                  message,
+                  style: AxataTextStyle.textSm.copyWith(
+                    color: CareraTheme.gray70,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

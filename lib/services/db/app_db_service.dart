@@ -18,22 +18,23 @@ class AppDbService extends GetxService {
 
   final RxBool isReady = false.obs;
 
-  late final String dbPath;
-  late final File dbFile;
-  late final sqlite.Database db;
+  String? _dbPath;
+  File? _dbFile;
+  sqlite.Database? _db;
+
+  String get dbPath => _dbPath ?? '';
+  File get dbFile => _dbFile!;
+  sqlite.Database get db => _db!;
 
   Future<AppDbService> init() async {
-    final directory = await getApplicationDocumentsDirectory();
-
-    dbPath = p.join(directory.path, dbName);
-    dbFile = File(dbPath);
-
-    if (!await dbFile.exists()) {
-      await dbFile.create(recursive: true);
+    if (isReady.value && _db != null) {
+      return this;
     }
 
-    db = sqlite.sqlite3.open(dbPath);
-    db.execute('PRAGMA foreign_keys = ON;');
+    await _prepareDbFile();
+
+    _db = sqlite.sqlite3.open(dbPath);
+    _db!.execute('PRAGMA foreign_keys = ON;');
 
     _migrate();
 
@@ -42,7 +43,8 @@ class AppDbService extends GetxService {
   }
 
   void _migrate() {
-    final result = db.select('PRAGMA user_version;');
+    final database = db;
+    final result = database.select('PRAGMA user_version;');
     final currentVersion =
         result.isNotEmpty ? (result.first['user_version'] as int? ?? 0) : 0;
 
@@ -50,14 +52,14 @@ class AppDbService extends GetxService {
       return;
     }
 
-    db.execute('BEGIN;');
+    database.execute('BEGIN;');
 
     try {
       _createTables();
-      db.execute('PRAGMA user_version = $schemaVersion;');
-      db.execute('COMMIT;');
+      database.execute('PRAGMA user_version = $schemaVersion;');
+      database.execute('COMMIT;');
     } catch (_) {
-      db.execute('ROLLBACK;');
+      database.execute('ROLLBACK;');
       rethrow;
     }
   }
@@ -79,20 +81,57 @@ class AppDbService extends GetxService {
     }
   }
 
+  Future<String> ensureDbPath() async {
+    await _prepareDbFile();
+    return dbPath;
+  }
+
+  Future<File> ensureDbFile() async {
+    await _prepareDbFile();
+    return dbFile;
+  }
+
   Future<void> closeConnection() async {
-    if (!isReady.value) {
+    final database = _db;
+    if (!isReady.value || database == null) {
       return;
     }
 
-    db.dispose();
+    database.dispose();
+    _db = null;
     isReady.value = false;
   }
 
+  Future<void> reopenConnection() async {
+    await closeConnection();
+    await init();
+  }
+
   Future<void> deleteDatabaseFile() async {
+    final file = await ensureDbFile();
     await closeConnection();
 
-    if (await dbFile.exists()) {
-      await dbFile.delete();
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
+
+  Future<void> _prepareDbFile() async {
+    if (_dbPath != null && _dbFile != null) {
+      if (!await _dbFile!.exists()) {
+        await _dbFile!.create(recursive: true);
+      }
+
+      return;
+    }
+
+    final directory = await getApplicationDocumentsDirectory();
+
+    _dbPath = p.join(directory.path, dbName);
+    _dbFile = File(_dbPath!);
+
+    if (!await _dbFile!.exists()) {
+      await _dbFile!.create(recursive: true);
     }
   }
 }

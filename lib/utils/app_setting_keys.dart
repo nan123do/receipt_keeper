@@ -20,6 +20,9 @@ class AppSettingKeys {
   static const String premiumPurchasedAt = 'PREMIUM_PURCHASED_AT';
   static const String premiumLastRestoreAt = 'PREMIUM_LAST_RESTORE_AT';
 
+  static const String backupLocalLastAt = 'BACKUP_LOCAL_LAST_AT';
+  static const String backupLocalLastFileName = 'BACKUP_LOCAL_LAST_FILE_NAME';
+
   static const String freeReceiptLimit = 'FREE_RECEIPT_LIMIT';
   static const String freeOcrLimit = 'FREE_OCR_LIMIT';
   static const String freeOcrUsedCount = 'FREE_OCR_USED_COUNT';
